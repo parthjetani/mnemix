@@ -25,14 +25,23 @@ router = APIRouter(prefix="/interview", tags=["interview"])
 
 async def _run_evaluation(session_id: str) -> None:
     from database import async_session_factory
-    async with async_session_factory() as db:
-        try:
-            evaluations = await evaluate_session(session_id, db)
-            await generate_feedback(session_id, evaluations, db)
-            await db.commit()
-        except Exception as exc:
-            logger.error(f"Evaluation background task failed for {session_id}: {exc}", exc_info=True)
-            await db.rollback()
+    # Small delay so the submit_answer transaction fully commits before we start writing
+    await asyncio.sleep(1.5)
+    for attempt in range(3):
+        async with async_session_factory() as db:
+            try:
+                evaluations = await evaluate_session(session_id, db)
+                await generate_feedback(session_id, evaluations, db)
+                await db.commit()
+                return
+            except Exception as exc:
+                await db.rollback()
+                if attempt < 2 and "locked" in str(exc).lower():
+                    logger.warning(f"Evaluation attempt {attempt+1} hit DB lock, retrying in 3s…")
+                    await asyncio.sleep(3)
+                else:
+                    logger.error(f"Evaluation background task failed for {session_id}: {exc}", exc_info=True)
+                    return
 
 
 @router.post("/start")
@@ -49,6 +58,7 @@ async def start_interview(request: InterviewStartRequest, db: AsyncSession = Dep
         "session_id": session.id,
         "session_type": request.session_type,
         "total_questions": len(questions),
+        "questions": [q.model_dump() for q in questions],
         "current_question": next_q,
     }
 

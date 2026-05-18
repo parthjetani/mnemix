@@ -4,7 +4,7 @@ The memory system stores, retrieves, and analyzes the professional memories extr
 
 ## Memory Store (`core/memory/store.py`)
 
-Handles persistence of `MemoryCreate` objects to SQLite.
+Handles persistence of `MemoryCreate` objects to PostgreSQL.
 
 ### `save_memory(memory, embedding, db) -> str`
 

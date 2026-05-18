@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documents — MNEMIX</title>
+
+  <meta name="supabase-url" content="https://fodnuozowtdesptqbray.supabase.co">
+  <meta name="supabase-anon-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvZG51b3pvd3RkZXNwdHFicmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDIxMzgsImV4cCI6MjA5NDY3ODEzOH0.O1YmQOEqWre1wAjYh3UKa1ANTmsOWAMl98JAsB129u4">
+
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/components.js"></script>
+
+  <style>
+    .doc-layout { display: grid; grid-template-columns: 300px 1fr; gap: 0; height: calc(100vh - var(--topbar-height)); }
+    .doc-list { border-right: 1px solid var(--color-border); overflow-y: auto; padding: var(--space-4) var(--space-3); }
+    .doc-detail { overflow-y: auto; padding: var(--space-6) var(--space-8); }
+
+    .source-item {
+      display: flex; align-items: flex-start; gap: var(--space-3);
+      padding: 10px var(--space-3); border-radius: var(--radius-md);
+      cursor: pointer; transition: background var(--transition-fast);
+      border: 1px solid transparent;
+    }
+    .source-item:hover { background: var(--color-surface-2); }
+    .source-item.active { background: rgba(99,102,241,0.08); border-color: var(--color-border-2); }
+    .source-icon {
+      width: 34px; height: 34px; border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; font-size: 16px;
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border-2);
+    }
+    .source-meta { flex: 1; min-width: 0; }
+    .source-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .source-sub { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; font-family: var(--font-mono); }
+
+    .upload-tabs { display: flex; gap: 2px; margin-bottom: var(--space-6); flex-wrap: wrap; }
+    .upload-tab {
+      padding: 6px 14px; border-radius: var(--radius-md); font-size: 13px; font-weight: 500;
+      color: var(--text-secondary); background: var(--color-surface-2);
+      border: 1px solid var(--color-border); cursor: pointer; transition: all var(--transition-fast);
+    }
+    .upload-tab.active { background: rgba(99,102,241,0.12); border-color: var(--color-primary); color: var(--color-accent); }
+    .upload-tab:hover:not(.active) { color: var(--text-primary); }
+
+    .progress-detail { height: 6px; background: var(--color-border-2); border-radius: var(--radius-full); overflow: hidden; margin: var(--space-2) 0; }
+    .progress-detail-fill { height: 100%; border-radius: var(--radius-full); background: var(--color-primary); transition: width 0.5s ease; }
+  </style>
+</head>
+<body>
+
+<div x-data="documentsPage()" x-init="init()">
+  <div class="app-shell">
+    <div id="sidebar-mount"></div>
+
+    <main class="main-content">
+      <header class="page-header">
+        <div class="page-title">Documents</div>
+        <button class="btn btn-primary btn-sm" @click="showUploadModal = true">
+          <i data-lucide="plus" style="width:13px;height:13px;"></i>
+          Add source
+        </button>
+      </header>
+
+      <div class="doc-layout">
+        <!-- Left: source list -->
+        <div class="doc-list">
+          <template x-if="jobs.length === 0 && !loading">
+            <div class="empty-state" style="padding: var(--space-10) var(--space-4);">
+              <i data-lucide="folder-open" class="empty-state-icon"></i>
+              <p class="text-sm text-secondary mb-4">No documents yet</p>
+              <button class="btn btn-primary btn-sm" @click="showUploadModal = true">Upload first source</button>
+            </div>
+          </template>
+
+          <template x-for="job in jobs" :key="job.id">
+            <div class="source-item" :class="{ active: selectedJob?.id === job.id }" @click="selectJob(job)">
+              <div class="source-icon" x-text="sourceEmoji(job.source_type)"></div>
+              <div class="source-meta">
+                <div class="source-name" x-text="Utils.sourceLabel(job.source_type)"></div>
+                <div class="source-sub" x-text="Utils.formatDate(job.started_at)"></div>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="badge" :class="Utils.statusBadgeClass(job.status)" x-text="job.status"></span>
+                  <span class="text-xs text-tertiary font-mono" x-text="`${job.memories_found} memories`"></span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <!-- Right: detail panel -->
+        <div class="doc-detail">
+          <template x-if="!selectedJob">
+            <div class="empty-state" style="margin-top: var(--space-16);">
+              <i data-lucide="file-text" class="empty-state-icon"></i>
+              <p class="text-secondary">Select a source to see details</p>
+            </div>
+          </template>
+
+          <template x-if="selectedJob">
+            <div>
+              <div class="flex items-center gap-3 mb-6">
+                <div class="source-icon" style="width:44px;height:44px;" x-text="sourceEmoji(selectedJob.source_type)"></div>
+                <div>
+                  <div class="text-lg font-semibold" x-text="Utils.sourceLabel(selectedJob.source_type)"></div>
+                  <div class="text-sm text-secondary" x-text="Utils.formatDate(selectedJob.started_at)"></div>
+                </div>
+                <span class="badge ml-auto" :class="Utils.statusBadgeClass(selectedJob.status)" x-text="selectedJob.status"></span>
+              </div>
+
+              <!-- Progress bar if processing -->
+              <template x-if="selectedJob.status === 'processing'">
+                <div class="card card-sm mb-6">
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium">Processing…</span>
+                    <span class="text-xs font-mono text-secondary" x-text="`${selectedJob.processed}/${selectedJob.total_segments} segments`"></span>
+                  </div>
+                  <div class="progress-detail">
+                    <div class="progress-detail-fill" :style="`width: ${progressPct(selectedJob)}%`"></div>
+                  </div>
+                  <div class="text-xs text-tertiary mt-1" x-text="`${selectedJob.memories_found} memories found so far`"></div>
+                </div>
+              </template>
+
+              <!-- Error state -->
+              <template x-if="selectedJob.status === 'failed'">
+                <div class="card card-sm mb-6" style="border-color: var(--color-danger);">
+                  <div class="text-sm text-danger font-medium mb-1">Ingestion failed</div>
+                  <div class="text-xs text-secondary" x-text="selectedJob.error_message || 'Unknown error'"></div>
+                </div>
+              </template>
+
+              <!-- Stats -->
+              <div class="grid-cols-2 mb-6" style="gap: var(--space-3);">
+                <div class="stat-card">
+                  <div class="stat-value text-2xl" x-text="selectedJob.memories_found"></div>
+                  <div class="stat-label">Memories Extracted</div>
+                </div>
+                <div class="stat-card">
+                  <div class="stat-value text-2xl" x-text="selectedJob.total_segments || '—'"></div>
+                  <div class="stat-label">Segments Processed</div>
+                </div>
+              </div>
+
+              <div class="section-title mb-3">Source Details</div>
+              <div class="card card-sm">
+                <div class="flex items-center justify-between py-2" style="border-bottom:1px solid var(--color-border);">
+                  <span class="text-sm text-secondary">Type</span>
+                  <span class="text-sm font-mono" x-text="Utils.sourceLabel(selectedJob.source_type)"></span>
+                </div>
+                <div class="flex items-center justify-between py-2" style="border-bottom:1px solid var(--color-border);">
+                  <span class="text-sm text-secondary">Started</span>
+                  <span class="text-sm font-mono" x-text="Utils.formatDate(selectedJob.started_at) + ' ' + Utils.formatTime(selectedJob.started_at)"></span>
+                </div>
+                <div class="flex items-center justify-between py-2">
+                  <span class="text-sm text-secondary">Completed</span>
+                  <span class="text-sm font-mono" x-text="selectedJob.completed_at ? Utils.formatDate(selectedJob.completed_at) : '—'"></span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Upload modal -->
+  <template x-if="showUploadModal">
+    <div class="modal-backdrop" @click.self="showUploadModal = false">
+      <div class="modal" style="max-width:540px;">
+        <div class="modal-header">
+          <span class="modal-title">Add a source</span>
+          <button class="btn btn-icon btn-ghost" @click="showUploadModal = false">
+            <i data-lucide="x" style="width:16px;height:16px;"></i>
+          </button>
+        </div>
+
+        <!-- Tab selector -->
+        <div class="upload-tabs mb-4">
+          <template x-for="tab in uploadTabs" :key="tab.id">
+            <button class="upload-tab" :class="{ active: uploadTab === tab.id }" @click="uploadTab = tab.id" x-text="tab.label"></button>
+          </template>
+        </div>
+
+        <!-- Resume tab -->
+        <template x-if="uploadTab === 'resume'">
+          <div>
+            <p class="text-sm text-secondary mb-4">Upload your resume as a PDF. We'll extract professional experiences and achievements.</p>
+            <div
+              class="dropzone"
+              :class="{ 'drag-over': dragOver }"
+              @click="$refs.resumeInput.click()"
+              @dragover.prevent="dragOver = true"
+              @dragleave="dragOver = false"
+              @drop.prevent="handleDrop($event, 'resume')"
+            >
+              <div class="dropzone-icon"><i data-lucide="file-text" style="width:40px;height:40px;"></i></div>
+              <div class="dropzone-title">Drop your resume PDF here</div>
+              <div class="dropzone-sub">or click to browse · PDF only · Max 10MB</div>
+            </div>
+            <input type="file" x-ref="resumeInput" accept=".pdf" class="hidden" @change="handleFileSelect($event, 'resume')">
+          </div>
+        </template>
+
+        <!-- ChatGPT tab -->
+        <template x-if="uploadTab === 'chatgpt'">
+          <div>
+            <p class="text-sm text-secondary mb-3">Export your ChatGPT history: <strong>Settings → Data controls → Export data</strong>. You'll receive a ZIP file.</p>
+            <div
+              class="dropzone"
+              :class="{ 'drag-over': dragOver }"
+              @click="$refs.chatgptInput.click()"
+              @dragover.prevent="dragOver = true"
+              @dragleave="dragOver = false"
+              @drop.prevent="handleDrop($event, 'chatgpt')"
+            >
+              <div class="dropzone-icon"><i data-lucide="message-square" style="width:40px;height:40px;"></i></div>
+              <div class="dropzone-title">Drop your ChatGPT export here</div>
+              <div class="dropzone-sub">or click to browse · ZIP or JSON</div>
+            </div>
+            <input type="file" x-ref="chatgptInput" accept=".zip,.json" class="hidden" @change="handleFileSelect($event, 'chatgpt')">
+          </div>
+        </template>
+
+        <!-- Claude tab -->
+        <template x-if="uploadTab === 'claude'">
+          <div>
+            <p class="text-sm text-secondary mb-3">Export your Claude history: <strong>Settings → Privacy → Export data</strong>. You'll receive a ZIP of markdown files.</p>
+            <div
+              class="dropzone"
+              :class="{ 'drag-over': dragOver }"
+              @click="$refs.claudeInput.click()"
+              @dragover.prevent="dragOver = true"
+              @dragleave="dragOver = false"
+              @drop.prevent="handleDrop($event, 'claude')"
+            >
+              <div class="dropzone-icon"><i data-lucide="bot" style="width:40px;height:40px;"></i></div>
+              <div class="dropzone-title">Drop your Claude export here</div>
+              <div class="dropzone-sub">or click to browse · ZIP or markdown files</div>
+            </div>
+            <input type="file" x-ref="claudeInput" accept=".zip,.md" class="hidden" @change="handleFileSelect($event, 'claude')">
+          </div>
+        </template>
+
+        <!-- Upload progress inside modal -->
+        <template x-if="uploading">
+          <div class="flex items-center gap-3 mt-4 card card-sm">
+            <div class="spinner"></div>
+            <span class="text-sm text-secondary" x-text="uploadStatus"></span>
+          </div>
+        </template>
+
+      </div>
+    </div>
+  </template>
+
+  <div id="bottom-nav-mount"></div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script>
+  function documentsPage() {
+    return {
+      ...appBase('documents'),
+      jobs: [],
+      selectedJob: null,
+      showUploadModal: false,
+      uploadTab: 'resume',
+      dragOver: false,
+      uploading: false,
+      uploadStatus: '',
+      pollingTimers: {},
+
+      uploadTabs: [
+        { id: 'resume',  label: '📄 Resume' },
+        { id: 'chatgpt', label: '💬 ChatGPT' },
+        { id: 'claude',  label: '🤖 Claude' },
+      ],
+
+      async init() {
+        await this._init();
+        await this.loadJobs();
+        this.$nextTick(() => lucide.createIcons());
+      },
+
+      async loadJobs() {
+        try {
+          const jobs = await API.listJobs();
+          this.jobs = jobs || [];
+          this.jobs.forEach(j => { if (j.status === 'processing' || j.status === 'queued') this.startPolling(j.id); });
+        } catch (err) {
+          this.handleError(err, 'Failed to load documents');
+        }
+      },
+
+      selectJob(job) {
+        this.selectedJob = job;
+        this.$nextTick(() => lucide.createIcons());
+      },
+
+      progressPct(job) {
+        if (!job.total_segments) return 0;
+        return Math.round((job.processed / job.total_segments) * 100);
+      },
+
+      sourceEmoji(type) {
+        return { resume: '📄', chatgpt: '💬', claude: '🤖', gemini: '✨', manual: '✍️' }[type] || '📁';
+      },
+
+      async handleFileSelect(event, type) {
+        const file = event.target.files[0];
+        if (file) await this.uploadFile(file, type);
+      },
+
+      async handleDrop(event, type) {
+        this.dragOver = false;
+        const file = event.dataTransfer.files[0];
+        if (file) await this.uploadFile(file, type);
+      },
+
+      async uploadFile(file, type) {
+        this.uploading = true;
+        this.uploadStatus = `Uploading ${file.name}…`;
+        try {
+          let resp;
+          if (type === 'resume') {
+            resp = await API.ingestResume(file);
+          } else {
+            resp = await API.ingestExport(file, type);
+          }
+          // IngestResponse has job_id; normalize to id for consistency
+          const job = { ...resp, id: resp.job_id, source_type: type, memories_found: 0, progress: 0 };
+          this.jobs.unshift(job);
+          this.selectedJob = job;
+          this.showUploadModal = false;
+          Utils.toast(`${Utils.sourceLabel(type)} upload started`, 'success');
+          this.startPolling(job.id);
+        } catch (err) {
+          this.handleError(err, 'Upload failed');
+        } finally {
+          this.uploading = false;
+          this.uploadStatus = '';
+        }
+      },
+
+      startPolling(jobId) {
+        if (!jobId || jobId === 'undefined') return;
+        if (this.pollingTimers[jobId]) return;
+        this.pollingTimers[jobId] = setInterval(async () => {
+          try {
+            const raw = await API.getJobStatus(jobId);
+            const updated = { ...raw, id: raw.job_id || jobId };
+            const idx = this.jobs.findIndex(j => j.id === jobId);
+            if (idx !== -1) this.jobs[idx] = updated;
+            if (this.selectedJob?.id === jobId) this.selectedJob = updated;
+            if (updated.status === 'complete' || updated.status === 'failed') {
+              clearInterval(this.pollingTimers[jobId]);
+              delete this.pollingTimers[jobId];
+              const msg = updated.status === 'complete'
+                ? `Done — ${updated.memories_found} memories extracted`
+                : 'Ingestion failed';
+              Utils.toast(msg, updated.status === 'complete' ? 'success' : 'error');
+            }
+          } catch { /* ignore polling errors */ }
+        }, 2500);
+      }
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    Auth.getSession().then(session => {
+      if (!session) return;
+      document.getElementById('sidebar-mount').innerHTML = renderSidebar('documents', session.user.email);
+      document.getElementById('bottom-nav-mount').innerHTML = renderBottomNav('documents');
+      lucide.createIcons();
+    });
+  });
+</script>
+
+</body>
+</html>

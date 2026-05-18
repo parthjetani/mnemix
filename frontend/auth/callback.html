@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signing in… — MNEMIX</title>
+
+  <!-- Supabase config — replace with your project values -->
+  <meta name="supabase-url" content="https://fodnuozowtdesptqbray.supabase.co">
+  <meta name="supabase-anon-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvZG51b3pvd3RkZXNwdHFicmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDIxMzgsImV4cCI6MjA5NDY3ODEzOH0.O1YmQOEqWre1wAjYh3UKa1ANTmsOWAMl98JAsB129u4">
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+
+  <!-- CDN scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- App scripts -->
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+
+  <style>
+    .callback-wrap {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-4);
+      text-align: center;
+      padding: var(--space-8);
+    }
+    .callback-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: var(--space-8);
+    }
+  </style>
+</head>
+<body>
+
+<div class="callback-wrap" id="status">
+  <div class="callback-logo">
+    <div class="sidebar-logo-mark" style="width:32px;height:32px;font-size:14px;">M</div>
+    <span class="sidebar-logo-text text-lg">MNEMIX</span>
+  </div>
+  <div class="spinner spinner-lg"></div>
+  <p class="text-secondary" id="status-text">Signing you in…</p>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script>
+  async function handleCallback() {
+    const statusEl = document.getElementById('status-text');
+
+    try {
+      const session = await Auth.handleCallback();
+
+      if (!session) {
+        statusEl.textContent = 'No session found. Redirecting to login…';
+        setTimeout(() => { window.location.href = '/login.html'; }, 2000);
+        return;
+      }
+
+      statusEl.textContent = 'Signed in! Redirecting…';
+
+      // Check if user has completed onboarding (profile field set)
+      try {
+        const profile = await fetch('/api/v1/profile', {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+        });
+        const data = await profile.json();
+        // last_updated is null for brand-new users (profile row not yet saved)
+        if (profile.ok && data.last_updated) {
+          window.location.href = '/dashboard.html';
+        } else {
+          window.location.href = '/onboarding.html';
+        }
+      } catch {
+        // Can't check profile — send to onboarding as safe default
+        window.location.href = '/onboarding.html';
+      }
+
+    } catch (err) {
+      statusEl.textContent = 'Sign-in failed. Redirecting to login…';
+      Utils.toast(err.message || 'Authentication failed', 'error');
+      setTimeout(() => { window.location.href = '/login.html'; }, 2500);
+    }
+  }
+
+  handleCallback();
+</script>
+
+</body>
+</html>

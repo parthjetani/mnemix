@@ -44,9 +44,13 @@ All models default to values optimized for the free tier. Change only if you hav
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | `sqlite+aiosqlite:///./mnemix.db` | SQLAlchemy async connection string. The path is relative to the working directory. |
+| `DATABASE_URL` | — | SQLAlchemy async connection string for Supabase PostgreSQL. **Required.** |
 
-To use an absolute path: `sqlite+aiosqlite:///D:/WorkSpace/mnemix/mnemix.db`
+Format: `postgresql+asyncpg://postgres:YOUR-PASSWORD@db.YOUR-PROJECT.supabase.co:5432/postgres`
+
+Special characters in the password must be URL-encoded (`#` → `%23`, `/` → `%2F`, `,` → `%2C`, `$` → `%24`).
+
+Get the connection string from: Supabase Dashboard → Project Settings → Database → Connection string → Python (asyncpg).
 
 ## Embeddings
 
@@ -93,8 +97,8 @@ Increase `EXTRACTION_BATCH_SIZE` or decrease `EXTRACTION_BATCH_DELAY` if you hav
 GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxx
 OPENROUTER_API_KEY=sk-or-xxxxxxxxxxxxxxxxxxxx
 
-# Database (relative path — file created in working directory)
-DATABASE_URL=sqlite+aiosqlite:///./mnemix.db
+# Database (Supabase PostgreSQL)
+DATABASE_URL=postgresql+asyncpg://postgres:your-password@db.your-project.supabase.co:5432/postgres
 
 # Embeddings (local, no cost)
 EMBEDDING_MODEL=all-MiniLM-L6-v2
@@ -122,7 +126,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
     GROQ_API_KEY: str           # Required — no default
     OPENROUTER_API_KEY: str     # Required — no default
-    DATABASE_URL: str = "sqlite+aiosqlite:///./mnemix.db"
+    DATABASE_URL: str  # Required — Supabase PostgreSQL connection string
     ...
 
 settings = Settings()  # singleton, imported everywhere

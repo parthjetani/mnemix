@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Setup — MNEMIX</title>
+
+  <meta name="supabase-url" content="https://fodnuozowtdesptqbray.supabase.co">
+  <meta name="supabase-anon-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvZG51b3pvd3RkZXNwdHFicmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDIxMzgsImV4cCI6MjA5NDY3ODEzOH0.O1YmQOEqWre1wAjYh3UKa1ANTmsOWAMl98JAsB129u4">
+
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/components.js"></script>
+
+  <style>
+    .onboarding-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: var(--space-6); }
+    .onboarding-card {
+      width: 100%; max-width: 540px;
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius-xl); overflow: hidden;
+    }
+    .step-progress { height: 3px; background: var(--color-border); }
+    .step-progress-fill { height: 100%; background: var(--color-primary); transition: width var(--transition-slow); }
+    .onboarding-body { padding: var(--space-10) var(--space-8); }
+    .step-indicator { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); margin-bottom: var(--space-4); }
+    .step-title { font-size: 22px; font-weight: 600; margin-bottom: var(--space-2); }
+    .step-desc { font-size: 14px; color: var(--text-secondary); margin-bottom: var(--space-8); line-height: 1.6; }
+
+    .onboarding-footer { display: flex; align-items: center; justify-content: space-between; padding: var(--space-5) var(--space-8); border-top: 1px solid var(--color-border); }
+
+    /* Welcome step */
+    .welcome-points { display: flex; flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-8); }
+    .welcome-point { display: flex; align-items: flex-start; gap: var(--space-3); }
+    .welcome-point-num { font-family: var(--font-mono); font-size: 13px; color: var(--color-accent); font-weight: 600; flex-shrink: 0; width: 20px; }
+    .welcome-point-text { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+
+    /* Upload step */
+    .upload-status { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--color-surface-2); border-radius: var(--radius-md); margin-top: var(--space-3); }
+
+    /* Step 5 stats */
+    .done-stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); margin-bottom: var(--space-8); }
+    .done-stat { background: var(--color-surface-2); border-radius: var(--radius-md); padding: var(--space-4); text-align: center; }
+    .done-stat-value { font-family: var(--font-mono); font-size: 28px; font-weight: 600; color: var(--color-accent); }
+    .done-stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<div class="onboarding-page" x-data="onboardingPage()" x-init="init()">
+  <div class="onboarding-card">
+
+    <!-- Progress bar -->
+    <div class="step-progress">
+      <div class="step-progress-fill" :style="`width: ${(step / 5) * 100}%`"></div>
+    </div>
+
+    <div class="onboarding-body">
+      <div class="step-indicator" x-text="`Step ${step} of 5`"></div>
+
+      <!-- ── Step 1: Welcome ──────────────────────────────── -->
+      <template x-if="step === 1">
+        <div>
+          <div class="flex items-center gap-3 mb-6">
+            <div class="sidebar-logo-mark" style="width:40px;height:40px;font-size:18px;">M</div>
+            <span class="sidebar-logo-text text-xl">MNEMIX</span>
+          </div>
+          <div class="step-title">Let's build your interview memory</div>
+          <div class="step-desc">We'll extract your professional stories from your resume and AI chat history to create personalized interview answers.</div>
+          <div class="welcome-points">
+            <div class="welcome-point">
+              <span class="welcome-point-num">01</span>
+              <span class="welcome-point-text">Tell us about your field and seniority level</span>
+            </div>
+            <div class="welcome-point">
+              <span class="welcome-point-num">02</span>
+              <span class="welcome-point-text">Upload your resume — we'll extract experiences automatically</span>
+            </div>
+            <div class="welcome-point">
+              <span class="welcome-point-num">03</span>
+              <span class="welcome-point-text">Add your ChatGPT or Claude export for deeper personalization</span>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- ── Step 2: Profile ─────────────────────────────── -->
+      <template x-if="step === 2">
+        <div>
+          <div class="step-title">Tell us about yourself</div>
+          <div class="step-desc">We use this to tailor questions and extract relevant memories.</div>
+
+          <div class="input-group mb-6">
+            <label class="input-label">Field</label>
+            <div class="pill-group">
+              <template x-for="f in fields" :key="f.value">
+                <button class="pill" :class="{ selected: profile.field === f.value }" @click="profile.field = f.value" x-text="f.label"></button>
+              </template>
+            </div>
+          </div>
+
+          <div class="input-group mb-6">
+            <label class="input-label">Seniority</label>
+            <div class="pill-group">
+              <template x-for="s in seniorities" :key="s.value">
+                <button class="pill" :class="{ selected: profile.seniority === s.value }" @click="profile.seniority = s.value" x-text="s.label"></button>
+              </template>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label class="input-label">Target roles (optional)</label>
+            <div class="pill-group mb-2">
+              <template x-for="t in profile.target_roles" :key="t">
+                <span class="tag">
+                  <span x-text="t"></span>
+                  <button class="tag-remove" @click="profile.target_roles = profile.target_roles.filter(r => r !== t)">×</button>
+                </span>
+              </template>
+            </div>
+            <div class="flex gap-2">
+              <input type="text" class="input" placeholder="e.g. Senior Backend Engineer" x-model="newRole" @keydown.enter.prevent="addRole" style="flex:1;">
+              <button class="btn btn-secondary btn-sm" @click="addRole">Add</button>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- ── Step 3: Resume ──────────────────────────────── -->
+      <template x-if="step === 3">
+        <div>
+          <div class="step-title">Upload your resume</div>
+          <div class="step-desc">We'll extract your work history, projects, and achievements.</div>
+
+          <template x-if="!jobs.resume">
+            <div
+              class="dropzone"
+              :class="{ 'drag-over': dragOver }"
+              @click="$refs.resumeFile.click()"
+              @dragover.prevent="dragOver = true"
+              @dragleave="dragOver = false"
+              @drop.prevent="handleDrop($event, 'resume')"
+            >
+              <div class="dropzone-icon"><i data-lucide="file-text" style="width:40px;height:40px;"></i></div>
+              <div class="dropzone-title" x-show="!uploading.resume">Drop your resume PDF here</div>
+              <div class="dropzone-sub" x-show="!uploading.resume">or click to browse · PDF only</div>
+              <div class="spinner mx-auto" x-show="uploading.resume"></div>
+              <input type="file" x-ref="resumeFile" accept=".pdf" class="hidden" @change="handleFile($event, 'resume')">
+            </div>
+          </template>
+
+          <template x-if="jobs.resume">
+            <div class="upload-status">
+              <template x-if="jobs.resume.status === 'processing'"><div class="spinner" style="width:16px;height:16px;border-width:2px;"></div></template>
+              <template x-if="jobs.resume.status === 'complete'"><span style="color:var(--color-success);">✓</span></template>
+              <template x-if="jobs.resume.status === 'failed'"><span style="color:var(--color-danger);">✗</span></template>
+              <span class="text-sm" x-text="jobs.resume.status === 'complete' ? `Resume processed — ${jobs.resume.memories_found} memories found` : jobs.resume.status === 'failed' ? 'Processing failed' : 'Processing resume…'"></span>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- ── Step 4: AI Exports ──────────────────────────── -->
+      <template x-if="step === 4">
+        <div>
+          <div class="step-title">Connect your AI history</div>
+          <div class="step-desc">Optional but powerful — adds 2 years of your real experiences.</div>
+
+          <!-- Source tabs -->
+          <div class="tabs mb-5">
+            <button class="tab" :class="{ active: exportTab === 'chatgpt' }" @click="exportTab = 'chatgpt'">ChatGPT</button>
+            <button class="tab" :class="{ active: exportTab === 'claude' }" @click="exportTab = 'claude'">Claude</button>
+          </div>
+
+          <!-- ChatGPT -->
+          <template x-if="exportTab === 'chatgpt'">
+            <div>
+              <p class="text-sm text-secondary mb-4">
+                Export from ChatGPT: <strong>Settings → Data controls → Export data</strong>. You'll get a ZIP within minutes.
+              </p>
+              <template x-if="!jobs.chatgpt">
+                <div
+                  class="dropzone"
+                  :class="{ 'drag-over': dragOverCG }"
+                  @click="$refs.chatgptFile.click()"
+                  @dragover.prevent="dragOverCG = true"
+                  @dragleave="dragOverCG = false"
+                  @drop.prevent="handleDrop($event, 'chatgpt')"
+                >
+                  <div class="dropzone-icon"><i data-lucide="message-square" style="width:40px;height:40px;"></i></div>
+                  <div class="dropzone-title" x-show="!uploading.chatgpt">Drop ChatGPT export here</div>
+                  <div class="dropzone-sub" x-show="!uploading.chatgpt">ZIP or JSON</div>
+                  <div class="spinner mx-auto" x-show="uploading.chatgpt"></div>
+                  <input type="file" x-ref="chatgptFile" accept=".zip,.json" class="hidden" @change="handleFile($event, 'chatgpt')">
+                </div>
+              </template>
+              <template x-if="jobs.chatgpt">
+                <div class="upload-status">
+                  <template x-if="jobs.chatgpt.status === 'processing'"><div class="spinner" style="width:16px;height:16px;border-width:2px;"></div></template>
+                  <template x-if="jobs.chatgpt.status === 'complete'"><span style="color:var(--color-success);">✓</span></template>
+                  <span class="text-sm" x-text="jobs.chatgpt.status === 'complete' ? `ChatGPT processed — ${jobs.chatgpt.memories_found} memories` : 'Processing ChatGPT export…'"></span>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <!-- Claude -->
+          <template x-if="exportTab === 'claude'">
+            <div>
+              <p class="text-sm text-secondary mb-4">
+                Export from Claude: <strong>Settings → Privacy → Export data</strong>. You'll receive a ZIP of markdown files.
+              </p>
+              <template x-if="!jobs.claude">
+                <div
+                  class="dropzone"
+                  :class="{ 'drag-over': dragOverCL }"
+                  @click="$refs.claudeFile.click()"
+                  @dragover.prevent="dragOverCL = true"
+                  @dragleave="dragOverCL = false"
+                  @drop.prevent="handleDrop($event, 'claude')"
+                >
+                  <div class="dropzone-icon"><i data-lucide="bot" style="width:40px;height:40px;"></i></div>
+                  <div class="dropzone-title" x-show="!uploading.claude">Drop Claude export here</div>
+                  <div class="dropzone-sub" x-show="!uploading.claude">ZIP or markdown files</div>
+                  <div class="spinner mx-auto" x-show="uploading.claude"></div>
+                  <input type="file" x-ref="claudeFile" accept=".zip,.md" class="hidden" @change="handleFile($event, 'claude')">
+                </div>
+              </template>
+              <template x-if="jobs.claude">
+                <div class="upload-status">
+                  <template x-if="jobs.claude.status === 'processing'"><div class="spinner" style="width:16px;height:16px;border-width:2px;"></div></template>
+                  <template x-if="jobs.claude.status === 'complete'"><span style="color:var(--color-success);">✓</span></template>
+                  <span class="text-sm" x-text="jobs.claude.status === 'complete' ? `Claude processed — ${jobs.claude.memories_found} memories` : 'Processing Claude export…'"></span>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- ── Step 5: Done ────────────────────────────────── -->
+      <template x-if="step === 5">
+        <div>
+          <div class="step-title">Your memory is ready 🎉</div>
+          <div class="step-desc">Here's what we found across all your sources.</div>
+
+          <div class="done-stats">
+            <div class="done-stat">
+              <div class="done-stat-value" x-text="totalMemories"></div>
+              <div class="done-stat-label">Memories extracted</div>
+            </div>
+            <div class="done-stat">
+              <div class="done-stat-value" x-text="totalSources"></div>
+              <div class="done-stat-label">Sources processed</div>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-3">
+            <a href="/interview.html" class="btn btn-primary btn-lg">Start your first interview →</a>
+            <a href="/memory.html" class="btn btn-secondary btn-lg">Explore your memories</a>
+          </div>
+        </div>
+      </template>
+
+    </div>
+
+    <!-- Footer with navigation -->
+    <div class="onboarding-footer">
+      <button class="btn btn-ghost btn-sm" @click="step--" x-show="step > 1">← Back</button>
+      <div x-show="step === 1"></div>
+
+      <div class="flex items-center gap-3">
+        <template x-if="step < 5 && step !== 1">
+          <a class="text-sm text-tertiary" style="cursor:pointer;" @click="skipStep" x-text="step === 4 ? 'Skip for now →' : 'Skip'"></a>
+        </template>
+        <template x-if="step < 5">
+          <button class="btn btn-primary" @click="nextStep" :disabled="!canProceed || saving">
+            <span x-show="saving" class="spinner" style="width:14px;height:14px;border-width:2px;"></span>
+            <span x-text="step === 1 ? `Let's go →` : 'Continue →'"></span>
+          </button>
+        </template>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script>
+  function onboardingPage() {
+    return {
+      step: 1,
+      saving: false,
+      exportTab: 'chatgpt',
+      dragOver: false, dragOverCG: false, dragOverCL: false,
+      uploading: { resume: false, chatgpt: false, claude: false },
+      jobs: { resume: null, chatgpt: null, claude: null },
+      pollingTimers: {},
+      newRole: '',
+
+      profile: {
+        field: 'software_engineering',
+        seniority: 'mid',
+        target_roles: [],
+      },
+
+      fields: [
+        { value: 'software_engineering', label: 'Software Engineering' },
+        { value: 'product', label: 'Product' },
+        { value: 'data_engineering', label: 'Data Engineering' },
+        { value: 'other', label: 'Other' },
+      ],
+      seniorities: [
+        { value: 'junior', label: 'Junior' },
+        { value: 'mid', label: 'Mid' },
+        { value: 'senior', label: 'Senior' },
+        { value: 'lead', label: 'Lead' },
+      ],
+
+      get canProceed() {
+        if (this.step === 2) return !!this.profile.field && !!this.profile.seniority;
+        return true;
+      },
+      get totalMemories() {
+        return Object.values(this.jobs).reduce((t, j) => t + (j?.memories_found || 0), 0);
+      },
+      get totalSources() {
+        return Object.values(this.jobs).filter(j => j?.status === 'complete').length;
+      },
+
+      async init() {
+        const session = await Auth.requireAuth();
+        if (!session) return;
+        this.$nextTick(() => lucide.createIcons());
+      },
+
+      async nextStep() {
+        if (this.step === 2) await this.saveProfile();
+        if (this.step === 4) this.step = 5;
+        else this.step++;
+        this.$nextTick(() => lucide.createIcons());
+      },
+
+      skipStep() {
+        if (this.step < 5) this.step++;
+        else this.step = 5;
+        this.$nextTick(() => lucide.createIcons());
+      },
+
+      async saveProfile() {
+        this.saving = true;
+        try {
+          await API.updateUserProfile(this.profile);
+          localStorage.setItem('mnemix_onboarded', 'true');
+        } catch { /* non-critical for onboarding flow */ }
+        finally { this.saving = false; }
+      },
+
+      addRole() {
+        const v = this.newRole.trim();
+        if (v && !this.profile.target_roles.includes(v)) this.profile.target_roles.push(v);
+        this.newRole = '';
+      },
+
+      async handleDrop(event, type) {
+        this['dragOver' + (type === 'resume' ? '' : type === 'chatgpt' ? 'CG' : 'CL')] = false;
+        const file = event.dataTransfer.files[0];
+        if (file) await this.uploadFile(file, type);
+      },
+
+      async handleFile(event, type) {
+        const file = event.target.files[0];
+        if (file) await this.uploadFile(file, type);
+      },
+
+      async uploadFile(file, type) {
+        this.uploading[type] = true;
+        try {
+          let job;
+          if (type === 'resume') {
+            job = await API.ingestResume(file);
+          } else {
+            job = await API.ingestExport(file, type);
+          }
+          this.jobs[type] = job;
+          this.startPolling(type, job.job_id);
+        } catch (err) {
+          Utils.toast(`Upload failed: ${err?.detail || err?.message || 'Unknown error'}`, 'error');
+        } finally {
+          this.uploading[type] = false;
+        }
+      },
+
+      startPolling(type, jobId) {
+        if (this.pollingTimers[type]) return;
+        this.pollingTimers[type] = setInterval(async () => {
+          try {
+            const updated = await API.getJobStatus(jobId);
+            this.jobs[type] = updated;
+            if (updated.status === 'complete' || updated.status === 'failed') {
+              clearInterval(this.pollingTimers[type]);
+              delete this.pollingTimers[type];
+            }
+          } catch { /* ignore */ }
+        }, 3000);
+      }
+    };
+  }
+</script>
+
+</body>
+</html>

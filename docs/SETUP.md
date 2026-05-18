@@ -6,6 +6,7 @@
 - Windows 11 or Linux/macOS
 - Groq API key (free — [console.groq.com](https://console.groq.com))
 - OpenRouter API key (free tier — [openrouter.ai](https://openrouter.ai))
+- Supabase project with PostgreSQL database (free tier is sufficient)
 
 ## Installation
 
@@ -49,7 +50,7 @@ All other values have working defaults. See [CONFIGURATION.md](CONFIGURATION.md)
 ```
 
 On first start, the server:
-1. Creates `mnemix.db` (SQLite) and all tables
+1. Connects to Supabase PostgreSQL (tables must already exist — run `python database.py` once)
 2. Seeds 50 questions from `data/questions_seed.json`
 3. Warms up the embedding model
 
@@ -115,6 +116,15 @@ The CLI connects to `http://localhost:8000` by default (uvicorn's default port).
 
 Ingestion runs as a background job. The CLI polls for status and shows a progress indicator. Expect 30–120 seconds for a large AI export.
 
+## Creating the Database Tables
+
+Tables are created once against Supabase PostgreSQL. Run this before starting the server for the first time:
+
+```powershell
+.\venv\Scripts\python database.py
+# → Tables created successfully.
+```
+
 ## Verifying the Setup
 
 ```powershell
@@ -123,18 +133,19 @@ curl http://localhost:8000/api/v1/health
 # → {"status":"ok","version":"0.1.0"}
 
 # Check question bank loaded
-# (requires sqlite3 on PATH)
-sqlite3 mnemix.db "SELECT COUNT(*) FROM questions"
-# → 50
+curl http://localhost:8000/api/v1/interview/sessions
+# → []
 ```
 
 ## Resetting the Database
 
-To start fresh (wipes all memories and sessions):
+To start fresh (wipes all memories and sessions), truncate the tables in Supabase:
 
-```powershell
-Remove-Item mnemix.db -Force
-# Restart the server — it recreates the database
+```sql
+-- Run in Supabase SQL Editor
+TRUNCATE memories, interview_sessions, session_answers, ingestion_jobs, user_profile RESTART IDENTITY CASCADE;
+-- Questions are preserved — re-seed with:
+-- DELETE FROM questions; then restart the server
 ```
 
 ## Common Issues

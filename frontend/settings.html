@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings — MNEMIX</title>
+
+  <meta name="supabase-url" content="https://fodnuozowtdesptqbray.supabase.co">
+  <meta name="supabase-anon-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvZG51b3pvd3RkZXNwdHFicmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDIxMzgsImV4cCI6MjA5NDY3ODEzOH0.O1YmQOEqWre1wAjYh3UKa1ANTmsOWAMl98JAsB129u4">
+
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/components.js"></script>
+
+  <style>
+    .settings-body { max-width: 640px; }
+    .setting-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--space-4) 0; border-bottom: 1px solid var(--color-border);
+    }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-label { font-size: 14px; font-weight: 500; }
+    .setting-desc { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+    /* Toggle */
+    .toggle {
+      width: 40px; height: 22px; border-radius: var(--radius-full);
+      background: var(--color-border-2); position: relative; cursor: pointer;
+      transition: background var(--transition-fast); flex-shrink: 0;
+      border: none;
+    }
+    .toggle.on { background: var(--color-primary); }
+    .toggle::after {
+      content: ''; position: absolute; width: 16px; height: 16px;
+      background: white; border-radius: 50%;
+      top: 3px; left: 3px; transition: transform var(--transition-fast);
+    }
+    .toggle.on::after { transform: translateX(18px); }
+
+    /* Danger zone */
+    .danger-zone {
+      border: 1px solid rgba(244,63,94,0.3); border-radius: var(--radius-lg);
+      padding: var(--space-5);
+    }
+    .danger-zone-title { font-size: 13px; font-weight: 600; color: var(--color-danger); margin-bottom: var(--space-4); }
+
+    /* Plan cards */
+    .plan-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
+    .plan-card {
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg); padding: var(--space-5); text-align: center;
+    }
+    .plan-card.current { border-color: var(--color-primary); background: rgba(99,102,241,0.04); }
+    .plan-price { font-family: var(--font-mono); font-size: 22px; font-weight: 600; }
+    .plan-name { font-size: 15px; font-weight: 600; margin-bottom: var(--space-1); }
+    .plan-period { font-size: 12px; color: var(--text-tertiary); }
+    .plan-features { text-align: left; margin: var(--space-4) 0; }
+    .plan-feature { font-size: 12px; color: var(--text-secondary); padding: 3px 0; display: flex; gap: 6px; }
+  </style>
+</head>
+<body>
+
+<div x-data="settingsPage()" x-init="init()">
+  <div class="app-shell">
+    <div id="sidebar-mount"></div>
+
+    <main class="main-content">
+      <header class="page-header">
+        <div class="page-title">Settings</div>
+      </header>
+
+      <div class="page-body settings-body">
+
+        <!-- Tab selector -->
+        <div class="tabs mb-8">
+          <button class="tab" :class="{ active: tab === 'account' }" @click="tab = 'account'">Account</button>
+          <button class="tab" :class="{ active: tab === 'profile' }" @click="tab = 'profile'">Career Profile</button>
+          <button class="tab" :class="{ active: tab === 'notifications' }" @click="tab = 'notifications'">Notifications</button>
+          <button class="tab" :class="{ active: tab === 'billing' }" @click="tab = 'billing'">Billing</button>
+        </div>
+
+        <!-- ACCOUNT TAB -->
+        <template x-if="tab === 'account'">
+          <div>
+            <div class="section-title mb-4">Account</div>
+            <div class="card mb-6">
+              <div class="setting-row">
+                <div>
+                  <div class="setting-label">Email</div>
+                  <div class="setting-desc font-mono" x-text="userEmail"></div>
+                </div>
+                <button class="btn btn-secondary btn-sm" @click="resendMagicLink" :disabled="resending">
+                  <span x-show="resending" class="spinner" style="width:12px;height:12px;border-width:2px;"></span>
+                  <span x-text="resending ? 'Sending…' : 'Resend magic link'"></span>
+                </button>
+              </div>
+              <div class="setting-row">
+                <div>
+                  <div class="setting-label">Sign out</div>
+                  <div class="setting-desc">Sign out from all devices</div>
+                </div>
+                <button class="btn btn-ghost btn-sm" @click="Auth.logout()">Sign out</button>
+              </div>
+            </div>
+
+            <div class="section-title mb-4">Danger Zone</div>
+            <div class="danger-zone">
+              <div class="danger-zone-title">Irreversible actions</div>
+              <div class="setting-row">
+                <div>
+                  <div class="setting-label">Delete all memories</div>
+                  <div class="setting-desc">Permanently delete all extracted memories. Your account stays.</div>
+                </div>
+                <button class="btn btn-danger btn-sm" @click="confirmDeleteMemories">Delete memories</button>
+              </div>
+              <div class="setting-row" style="border-bottom:none;">
+                <div>
+                  <div class="setting-label">Delete account</div>
+                  <div class="setting-desc">Permanently delete your account and all associated data.</div>
+                </div>
+                <button class="btn btn-danger btn-sm" @click="confirmDeleteAccount">Delete account</button>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- CAREER PROFILE TAB -->
+        <template x-if="tab === 'profile'">
+          <div>
+            <div class="section-title mb-4">Career Profile</div>
+            <template x-if="loadingProfile">
+              <div class="skeleton" style="height:280px;border-radius:12px;"></div>
+            </template>
+            <template x-if="!loadingProfile">
+              <div class="card">
+                <!-- Field -->
+                <div class="input-group mb-5">
+                  <label class="input-label">Field</label>
+                  <div class="pill-group">
+                    <template x-for="f in fields" :key="f.value">
+                      <button class="pill" :class="{ selected: profile.field === f.value }" @click="profile.field = f.value" x-text="f.label"></button>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- Seniority -->
+                <div class="input-group mb-5">
+                  <label class="input-label">Seniority</label>
+                  <div class="pill-group">
+                    <template x-for="s in seniorities" :key="s.value">
+                      <button class="pill" :class="{ selected: profile.seniority === s.value }" @click="profile.seniority = s.value" x-text="s.label"></button>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- Primary stack -->
+                <div class="input-group mb-5">
+                  <label class="input-label">Primary Stack</label>
+                  <div class="pill-group mb-2">
+                    <template x-for="t in profile.primary_stack" :key="t">
+                      <span class="tag">
+                        <span x-text="t"></span>
+                        <button class="tag-remove" @click="removeTag('primary_stack', t)">×</button>
+                      </span>
+                    </template>
+                  </div>
+                  <div class="flex gap-2">
+                    <input type="text" class="input" placeholder="e.g. FastAPI, React, PostgreSQL" x-model="newStack" @keydown.enter.prevent="addTag('primary_stack', newStack); newStack = ''" style="flex:1;">
+                    <button class="btn btn-secondary btn-sm" @click="addTag('primary_stack', newStack); newStack = ''">Add</button>
+                  </div>
+                </div>
+
+                <!-- Target roles -->
+                <div class="input-group mb-6">
+                  <label class="input-label">Target Roles</label>
+                  <div class="pill-group mb-2">
+                    <template x-for="t in profile.target_roles" :key="t">
+                      <span class="tag">
+                        <span x-text="t"></span>
+                        <button class="tag-remove" @click="removeTag('target_roles', t)">×</button>
+                      </span>
+                    </template>
+                  </div>
+                  <div class="flex gap-2">
+                    <input type="text" class="input" placeholder="e.g. Senior Backend Engineer" x-model="newRole" @keydown.enter.prevent="addTag('target_roles', newRole); newRole = ''" style="flex:1;">
+                    <button class="btn btn-secondary btn-sm" @click="addTag('target_roles', newRole); newRole = ''">Add</button>
+                  </div>
+                </div>
+
+                <button class="btn btn-primary" @click="saveProfile" :disabled="saving">
+                  <span x-show="saving" class="spinner" style="width:14px;height:14px;border-width:2px;"></span>
+                  <span x-text="saving ? 'Saving…' : 'Save changes'"></span>
+                </button>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- NOTIFICATIONS TAB -->
+        <template x-if="tab === 'notifications'">
+          <div>
+            <div class="section-title mb-4">Notifications</div>
+            <div class="card">
+              <div class="setting-row">
+                <div>
+                  <div class="setting-label">Ingestion complete</div>
+                  <div class="setting-desc">Email when a document finishes processing</div>
+                </div>
+                <button class="toggle" :class="{ on: notifs.ingestion }" @click="notifs.ingestion = !notifs.ingestion"></button>
+              </div>
+              <div class="setting-row">
+                <div>
+                  <div class="setting-label">Weekly practice reminder</div>
+                  <div class="setting-desc">Get a nudge every Monday morning</div>
+                </div>
+                <button class="toggle" :class="{ on: notifs.weekly }" @click="notifs.weekly = !notifs.weekly"></button>
+              </div>
+              <div class="setting-row">
+                <div>
+                  <div class="setting-label">Low coverage alerts</div>
+                  <div class="setting-desc">Alert when a high-priority gap appears</div>
+                </div>
+                <button class="toggle" :class="{ on: notifs.gaps }" @click="notifs.gaps = !notifs.gaps"></button>
+              </div>
+            </div>
+            <p class="text-xs text-tertiary mt-4">Notification preferences are saved locally. Email notifications coming in v0.2.</p>
+          </div>
+        </template>
+
+        <!-- BILLING TAB -->
+        <template x-if="tab === 'billing'">
+          <div>
+            <div class="section-title mb-4">Current Plan</div>
+            <div class="card card-sm mb-6 flex items-center gap-4">
+              <span class="badge badge-brand text-sm" style="padding:4px 12px;">Free</span>
+              <span class="text-sm text-secondary">3 sessions used · unlimited memories</span>
+            </div>
+
+            <div class="section-title mb-4">Plans</div>
+            <div class="plan-grid mb-8">
+              <div class="plan-card current">
+                <div class="plan-name">Free</div>
+                <div class="plan-price">₹0</div>
+                <div class="plan-period">forever</div>
+                <div class="plan-features">
+                  <div class="plan-feature"><span>✓</span> 3 sessions/month</div>
+                  <div class="plan-feature"><span>✓</span> Unlimited memories</div>
+                  <div class="plan-feature"><span>✓</span> All ingestion types</div>
+                </div>
+                <span class="badge badge-success w-full" style="justify-content:center;">Current plan</span>
+              </div>
+              <div class="plan-card">
+                <div class="plan-name">Starter</div>
+                <div class="plan-price">₹299</div>
+                <div class="plan-period">per month</div>
+                <div class="plan-features">
+                  <div class="plan-feature"><span>✓</span> 20 sessions/month</div>
+                  <div class="plan-feature"><span>✓</span> Memory chat</div>
+                  <div class="plan-feature"><span>✓</span> PDF reports</div>
+                </div>
+                <button class="btn btn-secondary w-full btn-sm">Upgrade</button>
+              </div>
+              <div class="plan-card">
+                <div class="plan-name">Pro</div>
+                <div class="plan-price">₹599</div>
+                <div class="plan-period">per month</div>
+                <div class="plan-features">
+                  <div class="plan-feature"><span>✓</span> Unlimited sessions</div>
+                  <div class="plan-feature"><span>✓</span> Priority evaluation</div>
+                  <div class="plan-feature"><span>✓</span> Advanced analytics</div>
+                </div>
+                <button class="btn btn-primary w-full btn-sm">Upgrade to Pro →</button>
+              </div>
+            </div>
+
+            <p class="text-xs text-tertiary">Billing powered by Razorpay. Coming soon.</p>
+          </div>
+        </template>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Confirm dialog -->
+  <template x-if="confirmDialog">
+    <div class="modal-backdrop" @click.self="confirmDialog = null">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title" x-text="confirmDialog.title"></span>
+        </div>
+        <p class="text-sm text-secondary mb-6" x-text="confirmDialog.message"></p>
+        <div class="flex gap-3">
+          <button class="btn btn-danger flex-1" @click="confirmDialog.action(); confirmDialog = null" x-text="confirmDialog.confirmLabel"></button>
+          <button class="btn btn-secondary flex-1" @click="confirmDialog = null">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <div id="bottom-nav-mount"></div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script>
+  function settingsPage() {
+    return {
+      ...appBase('settings'),
+      tab: 'account',
+      loadingProfile: true,
+      saving: false,
+      resending: false,
+      confirmDialog: null,
+      profile: { field: '', seniority: '', primary_stack: [], target_roles: [] },
+      newStack: '',
+      newRole: '',
+      notifs: {
+        ingestion: JSON.parse(localStorage.getItem('notif_ingestion') ?? 'true'),
+        weekly: JSON.parse(localStorage.getItem('notif_weekly') ?? 'false'),
+        gaps: JSON.parse(localStorage.getItem('notif_gaps') ?? 'true'),
+      },
+
+      fields: [
+        { value: 'software_engineering', label: 'Software Engineering' },
+        { value: 'product', label: 'Product' },
+        { value: 'data_engineering', label: 'Data Engineering' },
+        { value: 'other', label: 'Other' },
+      ],
+      seniorities: [
+        { value: 'junior', label: 'Junior' },
+        { value: 'mid', label: 'Mid' },
+        { value: 'senior', label: 'Senior' },
+        { value: 'lead', label: 'Lead' },
+      ],
+
+      async init() {
+        await this._init();
+        await this.loadProfile();
+        this.$nextTick(() => lucide.createIcons());
+        // Save notification toggles to localStorage on change
+        this.$watch('notifs', val => {
+          localStorage.setItem('notif_ingestion', val.ingestion);
+          localStorage.setItem('notif_weekly', val.weekly);
+          localStorage.setItem('notif_gaps', val.gaps);
+        });
+      },
+
+      async loadProfile() {
+        this.loadingProfile = true;
+        try {
+          const data = await API.getUserProfile();
+          this.profile = {
+            field: data.field || '',
+            seniority: data.seniority || '',
+            primary_stack: data.primary_stack || [],
+            target_roles: data.target_roles || [],
+          };
+        } catch { /* profile may not exist yet */ }
+        finally { this.loadingProfile = false; }
+      },
+
+      async saveProfile() {
+        this.saving = true;
+        try {
+          await API.updateUserProfile(this.profile);
+          Utils.toast('Profile saved', 'success');
+        } catch (err) {
+          this.handleError(err, 'Failed to save profile');
+        } finally {
+          this.saving = false;
+        }
+      },
+
+      addTag(field, value) {
+        const v = value.trim();
+        if (v && !this.profile[field].includes(v)) this.profile[field].push(v);
+      },
+      removeTag(field, value) {
+        this.profile[field] = this.profile[field].filter(t => t !== value);
+      },
+
+      async resendMagicLink() {
+        this.resending = true;
+        try {
+          await Auth.sendMagicLink(this.userEmail);
+          Utils.toast('Magic link sent — check your email', 'success');
+        } catch (err) {
+          this.handleError(err, 'Failed to send magic link');
+        } finally {
+          this.resending = false;
+        }
+      },
+
+      confirmDeleteMemories() {
+        this.confirmDialog = {
+          title: 'Delete all memories?',
+          message: 'This will permanently delete all extracted memories. Your account and sessions are kept.',
+          confirmLabel: 'Delete all memories',
+          action: async () => { Utils.toast('Memory deletion coming soon', 'info'); }
+        };
+      },
+
+      confirmDeleteAccount() {
+        this.confirmDialog = {
+          title: 'Delete your account?',
+          message: 'This permanently deletes your account, memories, and all session data. This cannot be undone.',
+          confirmLabel: 'Delete my account',
+          action: async () => { Utils.toast('Account deletion coming soon', 'info'); }
+        };
+      }
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    Auth.getSession().then(session => {
+      if (!session) return;
+      document.getElementById('sidebar-mount').innerHTML = renderSidebar('settings', session.user.email);
+      document.getElementById('bottom-nav-mount').innerHTML = renderBottomNav('settings');
+      lucide.createIcons();
+    });
+  });
+</script>
+
+</body>
+</html>

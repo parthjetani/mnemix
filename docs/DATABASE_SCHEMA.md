@@ -1,8 +1,8 @@
 # MNEMIX — Database Schema
 
-MNEMIX uses SQLite via SQLAlchemy 2.0 async ORM. The database file is `mnemix.db` in the working directory.
+MNEMIX uses Supabase PostgreSQL via SQLAlchemy 2.0 async ORM with asyncpg.
 
-All tables are created on server startup via `init_db()` in `database.py` using `Base.metadata.create_all`.
+Tables are created by running `python database.py` once before first server start. `init_db()` calls `Base.metadata.create_all` which is idempotent — safe to re-run.
 
 ## ORM Class Names vs Table Names
 
@@ -38,7 +38,7 @@ Stores extracted professional memories and their embeddings.
 | `access_count` | INTEGER | 0 | Times this memory was retrieved during answer evaluation |
 | `last_accessed` | TEXT | NULL | ISO 8601 timestamp of last retrieval |
 
-**Array columns** (`themes`, `interview_qs`) are stored as JSON strings because SQLite has no native array type. Deserialize with `json.loads()`.
+**Array columns** (`themes`, `interview_qs`) are stored as JSON strings (TEXT) for simplicity. Deserialize with `json.loads()`.
 
 **Embedding** is stored as a raw BLOB. Deserialize with:
 ```python
@@ -176,7 +176,7 @@ The 19 valid values for `memories.category` and `questions.category`:
 
 ## Async Access Pattern
 
-All database access uses async SQLAlchemy with aiosqlite:
+All database access uses async SQLAlchemy with asyncpg:
 
 ```python
 # In FastAPI endpoints — use the get_db() dependency

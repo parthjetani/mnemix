@@ -109,3 +109,5 @@ Thumbs.db
 *.swp
 *.swo
 tempCodeRunnerFile.py
+
+.playwright-mcp

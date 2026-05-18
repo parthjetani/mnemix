@@ -127,7 +127,7 @@ async def ingest_resume(
         created_at=now,
     )
     db.add(job)
-    await db.flush()
+    await db.commit()   # commit before background task so it can see the row
 
     suffix = Path(file.filename).suffix
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
@@ -161,7 +161,7 @@ async def ingest_ai_export(
         created_at=now,
     )
     db.add(job)
-    await db.flush()
+    await db.commit()   # commit before background task so it can see the row
 
     filename = file.filename or f"export.{'zip' if source_type == 'chatgpt' else 'zip'}"
     suffix = Path(filename).suffix or ".zip"
@@ -173,6 +173,32 @@ async def ingest_ai_export(
     background_tasks.add_task(_run_ai_export_ingestion, job_id, temp_path, source_type)
 
     return IngestResponse(job_id=job_id, status="queued", message=f"{source_type} export ingestion started")
+
+
+@router.get("/jobs")
+async def list_jobs(db: AsyncSession = Depends(get_db)):
+    from sqlalchemy import select
+    result = await db.execute(
+        select(IngestionJobORM).order_by(IngestionJobORM.created_at.desc())
+    )
+    jobs = result.scalars().all()
+    return [
+        {
+            "job_id": j.id,
+            "id": j.id,
+            "status": j.status,
+            "progress": j.progress,
+            "memories_found": j.memories_found,
+            "source_type": j.source_type,
+            "total_segments": j.total_segments,
+            "processed": j.processed,
+            "started_at": j.started_at,
+            "completed_at": j.completed_at,
+            "error_message": j.error_message,
+            "created_at": j.created_at,
+        }
+        for j in jobs
+    ]
 
 
 @router.get("/status/{job_id}")

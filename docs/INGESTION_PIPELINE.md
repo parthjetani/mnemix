@@ -1,6 +1,6 @@
 # MNEMIX — Ingestion Pipeline
 
-The ingestion pipeline transforms raw user documents into structured `MemoryCreate` objects stored in SQLite.
+The ingestion pipeline transforms raw user documents into structured `MemoryCreate` objects stored in PostgreSQL.
 
 ## Pipeline Overview
 
@@ -31,7 +31,7 @@ Embedder  (llm/embeddings.py)
         │
         ▼
 Store  (core/memory/store.py)
-  → memories table in SQLite
+  → memories table in PostgreSQL
         │
         ▼
 Retriever index update  (core/memory/retriever.py)

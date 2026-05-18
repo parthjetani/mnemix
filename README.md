@@ -73,7 +73,7 @@ copy .env.example .env
 |-------|-----------|
 | API | FastAPI + uvicorn |
 | CLI | Typer + Rich |
-| Database | SQLite + aiosqlite + SQLAlchemy 2.0 async |
+| Database | Supabase PostgreSQL + asyncpg + SQLAlchemy 2.0 async |
 | Embeddings | sentence-transformers `all-MiniLM-L6-v2` (local, free) |
 | LLM (primary) | Groq — `llama-3.3-70b-versatile`, `qwen3-32b`, `gpt-oss-20b` |
 | LLM (fallback) | OpenRouter free tier |
@@ -115,6 +115,7 @@ Each interview answer is scored across five dimensions:
 | [docs/SETUP.md](docs/SETUP.md) | Installation, configuration, running the server |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | All `.env` variables with descriptions and defaults |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System overview, data flow, module relationships |
+| [docs/UI_GUIDE.md](docs/UI_GUIDE.md) | Web UI pages, auth flow, shared JS objects, static serving |
 | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) | All FastAPI endpoints with request/response examples |
 | [docs/CLI_GUIDE.md](docs/CLI_GUIDE.md) | All CLI commands with examples and output |
 | [docs/DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) | All 6 tables, columns, types, and relationships |
@@ -127,6 +128,6 @@ Each interview answer is scored across five dimensions:
 
 ## Project Status
 
-v0.1 — terminal-only demo, single user, local machine. Full end-to-end flow verified.
+v0.1 — web UI + CLI, single user, Supabase-backed. Full end-to-end flow: ingest → interview → scored feedback report.
 
-Next: ingest real data, tune prompts based on real evaluation quality, build web UI.
+Next: tune prompts based on real evaluation quality, add pgvector for similarity search, multi-user support.

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat — MNEMIX</title>
+
+  <meta name="supabase-url" content="https://fodnuozowtdesptqbray.supabase.co">
+  <meta name="supabase-anon-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvZG51b3pvd3RkZXNwdHFicmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDIxMzgsImV4cCI6MjA5NDY3ODEzOH0.O1YmQOEqWre1wAjYh3UKa1ANTmsOWAMl98JAsB129u4">
+
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/components.js"></script>
+
+  <style>
+    .chat-page-layout {
+      display: flex; flex-direction: column;
+      height: calc(100vh - var(--topbar-height));
+    }
+    .chat-messages-area {
+      flex: 1; overflow-y: auto;
+      padding: var(--space-6) var(--space-8);
+      display: flex; flex-direction: column; gap: var(--space-5);
+    }
+    .chat-input-wrap {
+      border-top: 1px solid var(--color-border);
+      padding: var(--space-4) var(--space-8);
+      display: flex; gap: var(--space-3); align-items: flex-end;
+    }
+    .chat-textarea {
+      flex: 1; background: var(--color-surface);
+      border: 1px solid var(--color-border-2);
+      border-radius: var(--radius-lg); color: var(--text-primary);
+      font-size: 14px; line-height: 1.6;
+      padding: 10px 14px; resize: none; outline: none;
+      font-family: var(--font-body); min-height: 44px; max-height: 160px;
+      transition: border-color var(--transition-fast);
+    }
+    .chat-textarea:focus { border-color: var(--color-primary); }
+    .chat-textarea::placeholder { color: var(--text-tertiary); }
+
+    .msg-row { display: flex; }
+    .msg-row.user { justify-content: flex-end; }
+    .msg-row.assistant { justify-content: flex-start; }
+
+    .bubble {
+      max-width: 70%; padding: 10px 14px;
+      font-size: 14px; line-height: 1.7; border-radius: var(--radius-lg);
+    }
+    .bubble.user {
+      background: var(--color-primary); color: white;
+      border-bottom-right-radius: var(--radius-sm);
+    }
+    .bubble.assistant {
+      background: rgba(99,102,241,0.08);
+      border: 1px solid var(--color-border-2);
+      color: var(--text-primary);
+      border-bottom-left-radius: var(--radius-sm);
+    }
+    .bubble.assistant code {
+      font-family: var(--font-mono); font-size: 12px;
+      background: var(--color-surface-2); padding: 1px 5px;
+      border-radius: var(--radius-sm);
+    }
+    .memories-used {
+      margin-top: var(--space-2); padding: var(--space-2) var(--space-3);
+      background: rgba(99,102,241,0.06); border-radius: var(--radius-sm);
+      font-size: 11px; color: var(--text-tertiary); font-family: var(--font-mono);
+    }
+
+    /* Thinking indicator */
+    .thinking { display: flex; gap: 4px; align-items: center; padding: 8px 0; }
+    .thinking-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-border-2); animation: blink 1.2s ease-in-out infinite; }
+    .thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+    .thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink { 0%, 80%, 100% { opacity: 0.2; } 40% { opacity: 1; } }
+
+    /* Suggested prompts */
+    .prompts-grid { display: flex; flex-direction: column; gap: var(--space-2); max-width: 480px; margin: 0 auto; }
+    .prompt-chip {
+      padding: 10px 16px; background: var(--color-surface);
+      border: 1px solid var(--color-border-2);
+      border-radius: var(--radius-lg); font-size: 13px; color: var(--text-secondary);
+      cursor: pointer; transition: all var(--transition-fast); text-align: left;
+    }
+    .prompt-chip:hover { border-color: var(--color-primary); color: var(--color-accent); background: rgba(99,102,241,0.04); }
+  </style>
+</head>
+<body>
+
+<div x-data="chatPage()" x-init="init()">
+  <div class="app-shell">
+    <div id="sidebar-mount"></div>
+
+    <main class="main-content">
+      <header class="page-header">
+        <div>
+          <div class="page-title">Chat</div>
+          <div class="text-sm text-secondary">Memory-aware interview coaching</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" @click="clearChat" x-show="messages.length > 0">
+          <i data-lucide="rotate-ccw" style="width:13px;height:13px;"></i>
+          Clear
+        </button>
+      </header>
+
+      <div class="chat-page-layout">
+        <!-- Messages area -->
+        <div class="chat-messages-area" id="chat-messages">
+
+          <!-- Empty state with prompts -->
+          <template x-if="messages.length === 0">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:var(--space-8);">
+              <div class="sidebar-logo-mark" style="width:40px;height:40px;font-size:18px;margin-bottom:var(--space-4);">M</div>
+              <p class="text-lg font-semibold mb-1">Ask me anything</p>
+              <p class="text-secondary text-sm mb-8">I'll answer using your actual memories and experiences</p>
+              <div class="prompts-grid">
+                <template x-for="prompt in suggestedPrompts" :key="prompt">
+                  <button class="prompt-chip" @click="usePrompt(prompt)" x-text="prompt"></button>
+                </template>
+              </div>
+            </div>
+          </template>
+
+          <!-- Messages -->
+          <template x-for="(msg, idx) in messages" :key="idx">
+            <div class="msg-row" :class="msg.role">
+              <div class="bubble" :class="msg.role">
+                <span x-text="msg.text"></span>
+                <template x-if="msg.memories_used && msg.memories_used.length > 0">
+                  <div class="memories-used" x-text="`↑ drew from ${msg.memories_used.length} memor${msg.memories_used.length === 1 ? 'y' : 'ies'}`"></div>
+                </template>
+              </div>
+            </div>
+          </template>
+
+          <!-- Thinking indicator -->
+          <template x-if="loading">
+            <div class="msg-row assistant">
+              <div class="bubble assistant">
+                <div class="thinking">
+                  <div class="thinking-dot"></div>
+                  <div class="thinking-dot"></div>
+                  <div class="thinking-dot"></div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+        </div>
+
+        <!-- Input bar -->
+        <div class="chat-input-wrap">
+          <textarea
+            class="chat-textarea"
+            placeholder="Ask about your experiences, practice answers, or explore your memory…"
+            x-model="input"
+            @keydown.enter.prevent="!$event.shiftKey && send()"
+            @input="autoResize($event.target)"
+            rows="1"
+            x-ref="chatInput"
+          ></textarea>
+          <button class="btn btn-primary btn-icon" @click="send" :disabled="loading || !input.trim()">
+            <i data-lucide="send" style="width:15px;height:15px;"></i>
+          </button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="bottom-nav-mount"></div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script>
+  function chatPage() {
+    return {
+      ...appBase('chat'),
+      messages: [],
+      input: '',
+      loading: false,
+
+      suggestedPrompts: [
+        "What's my best debugging story?",
+        "How should I answer 'Tell me about yourself'?",
+        "What are my weakest interview categories?",
+        "Practice: Tell me about a time you led a team through a difficult situation",
+        "What technical achievements should I highlight most?",
+      ],
+
+      async init() {
+        await this._init();
+        this.$nextTick(() => {
+          lucide.createIcons();
+          this.$refs.chatInput?.focus();
+        });
+      },
+
+      usePrompt(prompt) {
+        this.input = prompt;
+        this.$refs.chatInput?.focus();
+      },
+
+      async send() {
+        const msg = this.input.trim();
+        if (!msg || this.loading) return;
+        this.input = '';
+        this.$nextTick(() => {
+          const ta = this.$refs.chatInput;
+          if (ta) { ta.style.height = 'auto'; }
+        });
+
+        this.messages.push({ role: 'user', text: msg });
+        this.loading = true;
+        this.scrollBottom();
+
+        try {
+          const res = await API.chat(msg);
+          this.messages.push({
+            role: 'assistant',
+            text: res.response,
+            memories_used: res.memories_used || [],
+          });
+        } catch (err) {
+          this.messages.push({
+            role: 'assistant',
+            text: 'Sorry, I ran into an error. Please try again.',
+            memories_used: [],
+          });
+          this.handleError(err, 'Chat request failed');
+        } finally {
+          this.loading = false;
+          this.$nextTick(() => {
+            this.scrollBottom();
+            lucide.createIcons();
+          });
+        }
+      },
+
+      clearChat() {
+        this.messages = [];
+        this.$nextTick(() => this.$refs.chatInput?.focus());
+      },
+
+      scrollBottom() {
+        const el = document.getElementById('chat-messages');
+        if (el) el.scrollTop = el.scrollHeight;
+      },
+
+      autoResize(el) {
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+      }
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    Auth.getSession().then(session => {
+      if (!session) return;
+      document.getElementById('sidebar-mount').innerHTML = renderSidebar('chat', session.user.email);
+      document.getElementById('bottom-nav-mount').innerHTML = renderBottomNav('chat');
+      lucide.createIcons();
+    });
+  });
+</script>
+
+</body>
+</html>

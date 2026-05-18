@@ -24,7 +24,7 @@ PROCESSING PIPELINE (core/processing/)
          │
          ▼
 PERSONAL MEMORY ENGINE (core/memory/)
-├── store.py        — save/retrieve memories from SQLite
+├── store.py        — save/retrieve memories from PostgreSQL
 ├── retriever.py    — in-memory cosine similarity search
 └── gap_detector.py — identify missing interview categories
          │
@@ -49,7 +49,7 @@ INTERFACE LAYER
 
 **Local embeddings.** sentence-transformers (`all-MiniLM-L6-v2`) runs locally. No embedding API calls, no latency, no cost. Embeddings are cached in memory by text content.
 
-**SQLite for demo.** All data persists in `mnemix.db`. The ORM schema mirrors a Supabase+pgvector production schema — switching is a connection string change plus replacing numpy similarity search with pgvector operators.
+**Supabase PostgreSQL.** All data persists in Supabase. The ORM uses SQLAlchemy async with asyncpg. Embeddings are stored as `BYTEA` columns and searched with in-memory numpy cosine similarity (future: replace with pgvector operators).
 
 **Single-user model.** No authentication. `user_profile` table has a single row with `id=1`. All memories, sessions, and jobs belong to the one user running the system.
 
@@ -66,7 +66,7 @@ INTERFACE LAYER
    c. classify each segment (professional / personal / mixed)
    d. extract memories from professional segments (LLM, batched)
    e. embed each memory (local sentence-transformers)
-   f. save to SQLite + add to in-memory retriever index
+   f. save to PostgreSQL + add to in-memory retriever index
    g. update IngestionJob (status=complete, memories_found=N)
 6. CLI polls GET /ingest/status/{job_id} until complete
 ```

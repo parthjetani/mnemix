@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Memory — MNEMIX</title>
+
+  <meta name="supabase-url" content="https://fodnuozowtdesptqbray.supabase.co">
+  <meta name="supabase-anon-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvZG51b3pvd3RkZXNwdHFicmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDIxMzgsImV4cCI6MjA5NDY3ODEzOH0.O1YmQOEqWre1wAjYh3UKa1ANTmsOWAMl98JAsB129u4">
+
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/components.js"></script>
+
+  <style>
+    .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
+    .cat-card {
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius-md); padding: var(--space-4); cursor: pointer;
+      transition: border-color var(--transition-fast);
+    }
+    .cat-card:hover { border-color: var(--color-border-2); }
+    .cat-name { font-size: 13px; font-weight: 500; margin-bottom: var(--space-2); }
+    .cat-counts { font-family: var(--font-mono); font-size: 11px; color: var(--text-secondary); margin-bottom: var(--space-2); }
+
+    .gap-card {
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg); padding: var(--space-5); margin-bottom: var(--space-3);
+      transition: border-color var(--transition-fast);
+    }
+    .gap-suggested {
+      margin: var(--space-3) 0;
+      padding: var(--space-3) var(--space-4);
+      border-left: 3px solid var(--color-border-2);
+      font-size: 13px;
+      font-style: italic;
+      color: var(--text-secondary);
+      background: var(--color-surface-2);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    }
+    .inline-answer {
+      margin-top: var(--space-4);
+      padding: var(--space-4);
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border-2);
+      border-radius: var(--radius-md);
+    }
+
+    .memory-card {
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-3);
+    }
+    .memory-card:hover { border-color: var(--color-border-2); }
+    .memory-content { font-size: 13px; line-height: 1.7; color: var(--text-primary); margin: var(--space-2) 0; }
+    .memory-themes { display: flex; flex-wrap: wrap; gap: var(--space-1); margin-top: var(--space-2); }
+    .theme-tag {
+      font-size: 11px; padding: 2px 8px; background: var(--color-surface-2);
+      border-radius: var(--radius-full); color: var(--text-tertiary);
+      font-family: var(--font-mono);
+    }
+    .outcome-indicators { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
+    .outcome-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+    }
+
+    .add-memory-form {
+      background: var(--color-surface-2); border: 1px solid var(--color-border-2);
+      border-radius: var(--radius-lg); padding: var(--space-5); margin-bottom: var(--space-6);
+    }
+  </style>
+</head>
+<body>
+
+<div x-data="memoryPage()" x-init="init()">
+  <div class="app-shell">
+    <div id="sidebar-mount"></div>
+
+    <main class="main-content">
+      <header class="page-header">
+        <div>
+          <div class="page-title">Memory</div>
+          <div class="text-sm text-secondary" x-text="profile ? `${profile.total_memories} memories · ${profile.field || 'No field set'}` : ''"></div>
+        </div>
+        <div class="tabs">
+          <button class="tab" :class="{ active: tab === 'overview' }" @click="tab = 'overview'">Overview</button>
+          <button class="tab" :class="{ active: tab === 'gaps' }" @click="tab = 'gaps'">
+            Gaps
+            <template x-if="highGapCount > 0">
+              <span class="badge badge-danger ml-1" x-text="highGapCount"></span>
+            </template>
+          </button>
+          <button class="tab" :class="{ active: tab === 'browse' }" @click="tab = 'browse'">Browse</button>
+        </div>
+      </header>
+
+      <div class="page-body">
+
+        <!-- OVERVIEW TAB -->
+        <template x-if="tab === 'overview'">
+          <div>
+            <template x-if="loading">
+              <div class="cat-grid">
+                <template x-for="i in 9"><div class="skeleton" style="height:88px;border-radius:8px;"></div></template>
+              </div>
+            </template>
+
+            <template x-if="!loading && profile">
+              <div>
+                <!-- Profile summary -->
+                <div class="flex items-center gap-3 mb-6">
+                  <span class="badge badge-brand" x-text="profile.field || 'No field'"></span>
+                  <span class="badge badge-neutral" x-text="profile.seniority || 'No seniority'"></span>
+                  <span class="text-sm text-tertiary font-mono" x-text="`${profile.total_memories} total memories`"></span>
+                </div>
+
+                <template x-if="profile.career_narrative">
+                  <p class="text-sm text-secondary mb-6" style="font-style:italic;" x-text="profile.career_narrative"></p>
+                </template>
+
+                <div class="section-title mb-3">Category Coverage</div>
+                <div class="cat-grid">
+                  <template x-for="cat in categories" :key="cat.name">
+                    <div class="cat-card" @click="tab = 'gaps'">
+                      <div class="cat-name" x-text="Utils.categoryLabel(cat.name)"></div>
+                      <div class="cat-counts" x-text="`${cat.have} / ${cat.need} memories`"></div>
+                      <div class="progress">
+                        <div class="progress-fill" :class="Utils.coverageProgressClass(cat.have, cat.need)"
+                          :style="`width: ${Math.min(100, cat.have / cat.need * 100)}%`"></div>
+                      </div>
+                      <div class="mt-2">
+                        <template x-if="cat.have >= cat.need">
+                          <span class="badge badge-success">Covered</span>
+                        </template>
+                        <template x-if="cat.have > 0 && cat.have < cat.need">
+                          <span class="badge badge-warning">Partial</span>
+                        </template>
+                        <template x-if="cat.have === 0">
+                          <span class="badge badge-danger">Gap</span>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- GAPS TAB -->
+        <template x-if="tab === 'gaps'">
+          <div>
+            <template x-if="gaps.length === 0 && !loading">
+              <div class="empty-state">
+                <i data-lucide="check-circle" class="empty-state-icon" style="color:var(--color-success);opacity:1;"></i>
+                <p class="text-lg font-semibold mb-2">All categories covered!</p>
+                <p class="text-secondary">You're well-prepared for interviews.</p>
+              </div>
+            </template>
+
+            <template x-if="gaps.length > 0">
+              <div>
+                <div class="flex items-center gap-3 mb-6">
+                  <span class="text-sm text-secondary" x-text="`${gaps.length} gaps found`"></span>
+                  <span class="badge badge-danger" x-text="`${highGapCount} high priority`"></span>
+                </div>
+
+                <template x-for="gap in gaps" :key="gap.category">
+                  <div class="gap-card">
+                    <div class="flex items-center justify-between mb-3">
+                      <div class="flex items-center gap-3">
+                        <span class="badge" :class="Utils.priorityBadgeClass(gap.priority)" x-text="gap.priority.toUpperCase()"></span>
+                        <span class="font-semibold" x-text="Utils.categoryLabel(gap.category)"></span>
+                      </div>
+                      <span class="font-mono text-sm text-secondary" x-text="`${gap.have} / ${gap.need}`"></span>
+                    </div>
+
+                    <div class="progress mb-3" style="height:6px;">
+                      <div class="progress-fill" :class="Utils.coverageProgressClass(gap.have, gap.need)"
+                        :style="`width: ${Math.min(100, gap.have / gap.need * 100)}%`"></div>
+                    </div>
+
+                    <template x-if="gap.suggested_questions && gap.suggested_questions.length > 0">
+                      <div class="gap-suggested" x-text="gap.suggested_questions[0]"></div>
+                    </template>
+
+                    <div class="flex items-center gap-2 mt-3">
+                      <button class="btn btn-secondary btn-sm" @click="toggleAnswer(gap.category)">
+                        <i data-lucide="pen-line" style="width:13px;height:13px;"></i>
+                        <span x-text="answeringGap === gap.category ? 'Cancel' : 'Answer this question'"></span>
+                      </button>
+                    </div>
+
+                    <!-- Inline answer form -->
+                    <template x-if="answeringGap === gap.category">
+                      <div class="inline-answer">
+                        <label class="input-label">Your answer</label>
+                        <textarea
+                          class="input textarea mb-3"
+                          placeholder="Describe a specific situation, what you did, and the outcome…"
+                          x-model="answerText"
+                          rows="4"
+                        ></textarea>
+                        <div class="flex items-center gap-2">
+                          <button class="btn btn-primary btn-sm" @click="saveAnswer(gap)" :disabled="savingAnswer || !answerText.trim()">
+                            <span x-show="savingAnswer" class="spinner" style="width:14px;height:14px;border-width:2px;"></span>
+                            Save memory
+                          </button>
+                          <button class="btn btn-ghost btn-sm" @click="answeringGap = null; answerText = ''">Cancel</button>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- BROWSE TAB -->
+        <template x-if="tab === 'browse'">
+          <div>
+            <!-- Search + filter bar -->
+            <div class="flex items-center gap-3 mb-6">
+              <div class="relative flex-1">
+                <i data-lucide="search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--text-tertiary);"></i>
+                <input
+                  type="text"
+                  class="input"
+                  style="padding-left: 36px;"
+                  placeholder="Search memories semantically…"
+                  x-model="searchQuery"
+                  @input.debounce.400ms="searchMemories"
+                >
+              </div>
+              <select class="input" style="width: 180px;" x-model="filterCategory" @change="searchMemories">
+                <option value="all">All categories</option>
+                <template x-for="cat in allCategories" :key="cat">
+                  <option :value="cat" x-text="Utils.categoryLabel(cat)"></option>
+                </template>
+              </select>
+              <button class="btn btn-secondary btn-sm" @click="showAddForm = !showAddForm">
+                <i data-lucide="plus" style="width:13px;height:13px;"></i>
+                Add memory
+              </button>
+            </div>
+
+            <!-- Add memory form -->
+            <template x-if="showAddForm">
+              <div class="add-memory-form mb-4">
+                <div class="section-title mb-4">Add memory manually</div>
+                <div class="input-group mb-3">
+                  <label class="input-label">Content</label>
+                  <textarea class="input textarea" placeholder="Describe a specific professional experience…" x-model="newMemory.content" rows="3"></textarea>
+                </div>
+                <div class="grid-cols-2 mb-3" style="gap:var(--space-3);">
+                  <div class="input-group">
+                    <label class="input-label">Category</label>
+                    <select class="input" x-model="newMemory.category">
+                      <template x-for="cat in allCategories" :key="cat">
+                        <option :value="cat" x-text="Utils.categoryLabel(cat)"></option>
+                      </template>
+                    </select>
+                  </div>
+                  <div class="input-group">
+                    <label class="input-label">Themes (comma separated)</label>
+                    <input type="text" class="input" placeholder="e.g. backend, python, team" x-model="newMemory.themesRaw">
+                  </div>
+                </div>
+                <div class="flex gap-2">
+                  <button class="btn btn-primary btn-sm" @click="addMemory" :disabled="!newMemory.content.trim() || addingMemory">
+                    <span x-show="addingMemory" class="spinner" style="width:14px;height:14px;border-width:2px;"></span>
+                    Save
+                  </button>
+                  <button class="btn btn-ghost btn-sm" @click="showAddForm = false">Cancel</button>
+                </div>
+              </div>
+            </template>
+
+            <!-- Memory list -->
+            <template x-if="searching">
+              <div class="flex items-center gap-3 text-secondary text-sm mb-4">
+                <div class="spinner"></div> Searching…
+              </div>
+            </template>
+
+            <template x-if="!searching && memories.length === 0">
+              <div class="empty-state">
+                <i data-lucide="search-x" class="empty-state-icon"></i>
+                <p class="text-secondary text-sm" x-text="searchQuery ? 'No memories matched your search' : 'No memories yet. Upload documents to get started.'"></p>
+              </div>
+            </template>
+
+            <template x-for="m in memories" :key="m.id">
+              <div class="memory-card">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="badge badge-brand" x-text="Utils.categoryLabel(m.category)"></span>
+                  <span class="badge badge-neutral" x-text="Utils.sourceLabel(m.source)"></span>
+                  <span class="text-xs text-tertiary ml-auto font-mono" x-text="Utils.formatDate(m.created_at)"></span>
+                </div>
+                <p class="memory-content" x-text="m.content"></p>
+                <div class="outcome-indicators">
+                  <template x-if="m.has_outcome">
+                    <span class="text-xs text-success" title="Has outcome">✓ outcome</span>
+                  </template>
+                  <template x-if="m.outcome_quantified">
+                    <span class="text-xs text-brand" title="Quantified">✓ quantified</span>
+                  </template>
+                  <span class="text-xs font-mono text-tertiary ml-auto" :style="`color: var(--color-primary)`">
+                    conf: <span x-text="m.confidence ? m.confidence.toFixed(2) : '—'"></span>
+                  </span>
+                </div>
+                <template x-if="m.themes && m.themes.length > 0">
+                  <div class="memory-themes">
+                    <template x-for="t in m.themes" :key="t">
+                      <span class="theme-tag" x-text="t"></span>
+                    </template>
+                  </div>
+                </template>
+              </div>
+            </template>
+
+            <template x-if="!searching && memories.length > 0">
+              <div class="text-center text-xs text-tertiary mt-4" x-text="`${memories.length} memories shown`"></div>
+            </template>
+          </div>
+        </template>
+
+      </div>
+    </main>
+  </div>
+
+  <div id="bottom-nav-mount"></div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script>
+  function memoryPage() {
+    return {
+      ...appBase('memory'),
+      tab: 'overview',
+      loading: true,
+      profile: null,
+      gaps: [],
+      memories: [],
+      categories: [],
+      searchQuery: '',
+      filterCategory: 'all',
+      searching: false,
+      answeringGap: null,
+      answerText: '',
+      savingAnswer: false,
+      showAddForm: false,
+      addingMemory: false,
+      newMemory: { content: '', category: 'technical_achievement', themesRaw: '' },
+
+      allCategories: [
+        'leadership','conflict_resolution','failure_learning','technical_achievement',
+        'collaboration','ambiguity_handling','initiative','communication','pressure_handling',
+        'system_design','debugging','tech_decisions','performance_optimization','architecture',
+        'career_goal','value','strength','working_style','self_awareness',
+      ],
+
+      requiredCategories: {
+        leadership: 3, conflict_resolution: 2, failure_learning: 2, technical_achievement: 3,
+        collaboration: 2, ambiguity_handling: 2, initiative: 2, system_design: 1,
+        debugging: 2, tech_decisions: 2, career_goal: 1, value: 1, strength: 2,
+      },
+
+      get highGapCount() {
+        return this.gaps.filter(g => g.priority === 'high').length;
+      },
+
+      async init() {
+        await this._init();
+        // Check URL hash for direct tab link
+        if (window.location.hash === '#gaps') this.tab = 'gaps';
+        await this.loadData();
+        this.$nextTick(() => lucide.createIcons());
+      },
+
+      async loadData() {
+        this.loading = true;
+        try {
+          const [profileData, gapsData] = await Promise.all([
+            API.getProfile(),
+            API.getGaps(),
+          ]);
+          this.profile = profileData;
+          this.gaps = gapsData.gaps || [];
+          this.buildCategories();
+          // Load initial browse memories
+          await this.searchMemories();
+        } catch (err) {
+          this.handleError(err, 'Failed to load memory data');
+        } finally {
+          this.loading = false;
+          this.$nextTick(() => lucide.createIcons());
+        }
+      },
+
+      buildCategories() {
+        const byCat = this.profile?.memories_by_category || {};
+        this.categories = Object.keys(this.requiredCategories).map(name => ({
+          name,
+          have: (byCat[name] || []).length,
+          need: this.requiredCategories[name],
+        }));
+      },
+
+      async searchMemories() {
+        this.searching = true;
+        try {
+          if (this.searchQuery.trim().length > 2) {
+            const results = await API.searchMemories(this.searchQuery, 20);
+            this.memories = results;
+          } else {
+            // Load all memories flat from profile
+            const byCat = this.profile?.memories_by_category || {};
+            let all = Object.values(byCat).flat();
+            if (this.filterCategory !== 'all') {
+              all = all.filter(m => m.category === this.filterCategory);
+            }
+            this.memories = all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          }
+        } catch (err) {
+          this.handleError(err, 'Search failed');
+        } finally {
+          this.searching = false;
+        }
+      },
+
+      toggleAnswer(category) {
+        if (this.answeringGap === category) {
+          this.answeringGap = null;
+          this.answerText = '';
+        } else {
+          this.answeringGap = category;
+          this.answerText = '';
+          this.$nextTick(() => lucide.createIcons());
+        }
+      },
+
+      async saveAnswer(gap) {
+        if (!this.answerText.trim()) return;
+        this.savingAnswer = true;
+        try {
+          await API.addMemory({ content: this.answerText.trim(), category: gap.category, themes: [] });
+          this.answeringGap = null;
+          this.answerText = '';
+          Utils.toast('Memory saved!', 'success');
+          await this.loadData();
+        } catch (err) {
+          this.handleError(err, 'Failed to save memory');
+        } finally {
+          this.savingAnswer = false;
+        }
+      },
+
+      async addMemory() {
+        if (!this.newMemory.content.trim()) return;
+        this.addingMemory = true;
+        try {
+          const themes = this.newMemory.themesRaw
+            .split(',').map(t => t.trim()).filter(Boolean);
+          await API.addMemory({
+            content: this.newMemory.content.trim(),
+            category: this.newMemory.category,
+            themes,
+          });
+          this.newMemory = { content: '', category: 'technical_achievement', themesRaw: '' };
+          this.showAddForm = false;
+          Utils.toast('Memory added!', 'success');
+          await this.loadData();
+        } catch (err) {
+          this.handleError(err, 'Failed to add memory');
+        } finally {
+          this.addingMemory = false;
+        }
+      }
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    Auth.getSession().then(session => {
+      if (!session) return;
+      document.getElementById('sidebar-mount').innerHTML = renderSidebar('memory', session.user.email);
+      document.getElementById('bottom-nav-mount').innerHTML = renderBottomNav('memory');
+      lucide.createIcons();
+    });
+  });
+</script>
+
+</body>
+</html>

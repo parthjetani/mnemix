@@ -27,8 +27,8 @@ class Settings(BaseSettings):
     MODEL_FALLBACK_REASONING: str = "deepseek/deepseek-r1:free"
     MODEL_FALLBACK_GENERAL: str = "meta-llama/llama-3.3-70b-instruct:free"
 
-    # Database
-    DATABASE_URL: str = "sqlite+aiosqlite:///./mnemix.db"
+    # Database (Supabase PostgreSQL)
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/postgres"
 
     # Embeddings (local, no API cost)
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     MAX_MEMORIES_PER_USER: int = 500
     MIN_CONFIDENCE_THRESHOLD: float = 0.65
     INTERVIEW_QUESTIONS_COUNT: int = 8
+
+    # Supabase — required for UI auth (optional for CLI-only use)
+    SUPABASE_URL: str = ""
+    SUPABASE_ANON_KEY: str = ""
 
     # Rate limiting — Groq free tier is 6K tokens/min
     # Extractor will sleep between batches to stay within limits

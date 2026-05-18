@@ -1,7 +1,8 @@
 import asyncio
+import ssl
 from sqlalchemy import (
     Column, Text, Integer, Float, LargeBinary, Boolean,
-    ForeignKey, String
+    ForeignKey, String,
 )
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
@@ -9,7 +10,17 @@ from sqlalchemy.orm import DeclarativeBase
 from config import settings
 
 
-engine = create_async_engine(settings.DATABASE_URL, echo=settings.DEBUG)
+_ssl_ctx = ssl.create_default_context()
+_ssl_ctx.check_hostname = False
+_ssl_ctx.verify_mode = ssl.CERT_NONE
+
+engine = create_async_engine(
+    settings.DATABASE_URL,
+    echo=settings.DEBUG,
+    pool_pre_ping=True,
+    connect_args={"ssl": _ssl_ctx},
+)
+
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 async_session_factory = AsyncSessionLocal   # alias for background tasks
 

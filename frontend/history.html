@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>History — MNEMIX</title>
+
+  <meta name="supabase-url" content="https://fodnuozowtdesptqbray.supabase.co">
+  <meta name="supabase-anon-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvZG51b3pvd3RkZXNwdHFicmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDIxMzgsImV4cCI6MjA5NDY3ODEzOH0.O1YmQOEqWre1wAjYh3UKa1ANTmsOWAMl98JAsB129u4">
+
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/components.js"></script>
+
+  <style>
+    .trend-arrow { font-size: 18px; }
+    .filter-bar { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-4); flex-wrap: wrap; }
+    .chart-container { height: 220px; position: relative; margin-bottom: var(--space-8); }
+    .score-cell { display: flex; align-items: center; gap: var(--space-3); }
+    .score-mini-bar { flex: 1; max-width: 80px; }
+  </style>
+</head>
+<body>
+
+<div x-data="historyPage()" x-init="init()">
+  <div class="app-shell">
+    <div id="sidebar-mount"></div>
+
+    <main class="main-content">
+      <header class="page-header">
+        <div class="page-title">History</div>
+        <a href="/interview.html" class="btn btn-primary btn-sm">
+          <i data-lucide="plus" style="width:13px;height:13px;"></i>
+          New session
+        </a>
+      </header>
+
+      <div class="page-body">
+
+        <!-- Loading -->
+        <template x-if="loading">
+          <div>
+            <div class="stats-row mb-8">
+              <template x-for="i in 4"><div class="stat-card"><div class="skeleton" style="height:26px;width:50px;margin-bottom:8px;"></div><div class="skeleton" style="height:12px;width:80px;"></div></div></template>
+            </div>
+            <div class="skeleton" style="height:220px;border-radius:12px;margin-bottom:var(--space-8);"></div>
+          </div>
+        </template>
+
+        <template x-if="!loading">
+          <div>
+            <!-- Stats row -->
+            <div class="stats-row mb-8">
+              <div class="stat-card">
+                <div class="stat-value" style="color:var(--color-accent)" x-text="sessions.length"></div>
+                <div class="stat-label">Total Sessions</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" :style="`color: ${Utils.scoreColor(avgScore)}`" x-text="avgScore ? avgScore + '%' : '—'"></div>
+                <div class="stat-label">Average Score</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" :style="`color: ${Utils.scoreColor(bestScore)}`" x-text="bestScore ? bestScore + '%' : '—'"></div>
+                <div class="stat-label">Best Score</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" x-text="trendEmoji" style="font-size:28px;"></div>
+                <div class="stat-label">Trend</div>
+              </div>
+            </div>
+
+            <!-- Score over time chart -->
+            <template x-if="chartSessions.length > 0">
+              <div class="card mb-8">
+                <div class="font-semibold mb-4">Score over time</div>
+                <div class="chart-container">
+                  <canvas id="historyChart"></canvas>
+                </div>
+              </div>
+            </template>
+
+            <!-- Filter bar -->
+            <div class="filter-bar">
+              <div class="tabs">
+                <button class="tab" :class="{ active: filter === 'all' }" @click="filter = 'all'">All</button>
+                <button class="tab" :class="{ active: filter === 'behavioral' }" @click="filter = 'behavioral'">Behavioral</button>
+                <button class="tab" :class="{ active: filter === 'technical' }" @click="filter = 'technical'">Technical</button>
+                <button class="tab" :class="{ active: filter === 'mixed' }" @click="filter = 'mixed'">Mixed</button>
+              </div>
+              <span class="text-sm text-tertiary font-mono ml-auto" x-text="`${filteredSessions.length} sessions`"></span>
+            </div>
+
+            <!-- Sessions table -->
+            <template x-if="filteredSessions.length === 0">
+              <div class="empty-state">
+                <i data-lucide="clipboard-list" class="empty-state-icon"></i>
+                <p class="text-secondary text-sm mb-4" x-text="filter === 'all' ? 'No sessions yet' : `No ${filter} sessions yet`"></p>
+                <a href="/interview.html" class="btn btn-primary btn-sm">Start first session →</a>
+              </div>
+            </template>
+
+            <template x-if="filteredSessions.length > 0">
+              <div class="card" style="padding:0;overflow:hidden;">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Type</th>
+                      <th>Score</th>
+                      <th>Date</th>
+                      <th>Status</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <template x-for="s in filteredSessions" :key="s.id">
+                      <tr>
+                        <td>
+                          <div class="flex items-center gap-2">
+                            <span x-text="typeEmoji(s.session_type)"></span>
+                            <span x-text="Utils.sessionTypeLabel(s.session_type)"></span>
+                          </div>
+                        </td>
+                        <td>
+                          <div class="score-cell">
+                            <span class="font-mono text-sm" :style="`color: ${Utils.scoreColor(s.overall_score)}`" x-text="s.overall_score ? Math.round(s.overall_score) + '%' : '—'"></span>
+                            <div class="score-mini-bar">
+                              <div class="progress">
+                                <div class="progress-fill" :class="Utils.scoreProgressClass(s.overall_score)" :style="`width: ${s.overall_score || 0}%`"></div>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <div class="text-sm" x-text="Utils.formatDate(s.started_at)"></div>
+                          <div class="text-xs text-tertiary" x-text="Utils.timeAgo(s.started_at)"></div>
+                        </td>
+                        <td>
+                          <span class="badge" :class="Utils.statusBadgeClass(s.status)" x-text="s.status"></span>
+                        </td>
+                        <td>
+                          <a :href="`/report.html?id=${s.id}`" class="btn btn-ghost btn-sm">View →</a>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </template>
+
+          </div>
+        </template>
+      </div>
+    </main>
+  </div>
+
+  <div id="bottom-nav-mount"></div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script>
+  function historyPage() {
+    return {
+      ...appBase('history'),
+      sessions: [],
+      loading: true,
+      filter: 'all',
+
+      get filteredSessions() {
+        if (this.filter === 'all') return this.sessions;
+        return this.sessions.filter(s => s.session_type === this.filter);
+      },
+      get chartSessions() {
+        return this.sessions.filter(s => s.overall_score).slice(-20);
+      },
+      get avgScore() {
+        const scored = this.sessions.filter(s => s.overall_score);
+        if (!scored.length) return 0;
+        return Math.round(scored.reduce((a, s) => a + s.overall_score, 0) / scored.length);
+      },
+      get bestScore() {
+        const scored = this.sessions.filter(s => s.overall_score);
+        if (!scored.length) return 0;
+        return Math.round(Math.max(...scored.map(s => s.overall_score)));
+      },
+      get trendEmoji() {
+        const recent = this.sessions.filter(s => s.overall_score).slice(0, 5);
+        if (recent.length < 2) return '—';
+        const latest = recent[0].overall_score;
+        const prev = recent[recent.length - 1].overall_score;
+        if (latest > prev + 5) return '📈';
+        if (latest < prev - 5) return '📉';
+        return '➡️';
+      },
+
+      typeEmoji(type) {
+        return { behavioral: '🎯', technical: '⚙️', mixed: '🔀' }[type] || '📋';
+      },
+
+      async init() {
+        await this._init();
+        try {
+          this.sessions = await API.getSessions();
+        } catch (err) {
+          this.handleError(err, 'Failed to load history');
+        } finally {
+          this.loading = false;
+          this.$nextTick(() => {
+            lucide.createIcons();
+            if (this.chartSessions.length > 0) this.renderChart();
+          });
+        }
+      },
+
+      renderChart() {
+        const canvas = document.getElementById('historyChart');
+        if (!canvas) return;
+        const data = this.chartSessions.reverse();
+
+        new Chart(canvas, {
+          type: 'line',
+          data: {
+            labels: data.map(s => Utils.formatDate(s.started_at)),
+            datasets: [{
+              data: data.map(s => Math.round(s.overall_score)),
+              borderColor: 'rgba(99,102,241,0.8)',
+              backgroundColor: 'rgba(99,102,241,0.08)',
+              tension: 0.4,
+              fill: true,
+              pointBackgroundColor: data.map(s => {
+                const sc = s.overall_score;
+                if (sc >= 70) return 'rgba(16,185,129,0.9)';
+                if (sc >= 50) return 'rgba(245,158,11,0.9)';
+                return 'rgba(244,63,94,0.9)';
+              }),
+              pointRadius: 5,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                min: 0, max: 100,
+                grid: { color: 'rgba(255,255,255,0.04)' },
+                ticks: { color: '#71717a', font: { family: 'Geist Mono', size: 11 } },
+              },
+              x: {
+                grid: { display: false },
+                ticks: { color: '#71717a', font: { family: 'Geist Mono', size: 11 }, maxRotation: 0 },
+              }
+            },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#161616',
+                borderColor: '#2a2a2a',
+                borderWidth: 1,
+                titleColor: '#f4f4f5',
+                bodyColor: '#a1a1aa',
+                callbacks: {
+                  label: ctx => `Score: ${ctx.raw}%`
+                }
+              }
+            }
+          }
+        });
+      }
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    Auth.getSession().then(session => {
+      if (!session) return;
+      document.getElementById('sidebar-mount').innerHTML = renderSidebar('history', session.user.email);
+      document.getElementById('bottom-nav-mount').innerHTML = renderBottomNav('history');
+      lucide.createIcons();
+    });
+  });
+</script>
+
+</body>
+</html>

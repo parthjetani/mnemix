@@ -40,17 +40,15 @@ real project stories. The answers sound like the user because they ARE the user.
 
 ## CURRENT BUILD PHASE
 
-**Phase:** Demo v0.1 — Terminal only, local machine, single user (Parth testing himself)
+**Phase:** v0.1 — Web UI + CLI, Supabase-backed, single user
 **Goal:** Prove the core value: personal memory makes interview answers better
-**Timeline:** 2 days focused build
-**After demo:** Share with 3 friends → get feedback → iterate → build UI
+**Status:** End-to-end flow working: ingest → interview → scored feedback report
 
 **What this phase is NOT:**
 - Not production ready
-- Not multi-user
-- Not deployed anywhere
-- Not requiring Redis or complex infrastructure
-- No authentication needed
+- Not multi-user (user_profile is a single row)
+- Not deployed (runs locally on http://localhost:8000)
+- No Redis or complex infrastructure
 
 ---
 
@@ -72,7 +70,7 @@ PROCESSING PIPELINE
         ↓
 PERSONAL MEMORY ENGINE
 ├── Embeddings (sentence-transformers, local, free)
-├── Storage (SQLite for demo → Supabase pgvector for prod)
+├── Storage (Supabase PostgreSQL — embeddings as BYTEA, future: pgvector)
 ├── Retrieval (cosine similarity search)
 └── Gap Detector (which interview categories are missing?)
         ↓
@@ -103,7 +101,7 @@ mnemix/
 ├── main.py                 ← FastAPI app entry point
 ├── cli.py                  ← Typer terminal interface
 ├── config.py               ← All settings, loaded from .env
-├── database.py             ← SQLite connection + table creation
+├── database.py             ← PostgreSQL connection + table creation
 ├── requirements.txt
 │
 ├── llm/
@@ -129,7 +127,7 @@ mnemix/
 │   │
 │   ├── memory/
 │   │   ├── __init__.py
-│   │   ├── store.py             ← Save/retrieve memories from SQLite
+│   │   ├── store.py             ← Save/retrieve memories from PostgreSQL
 │   │   ├── retriever.py         ← Semantic search against memories
 │   │   └── gap_detector.py      ← Find missing interview categories
 │   │
@@ -154,6 +152,29 @@ mnemix/
 ├── data/
 │   └── questions_seed.json     ← 50 pre-seeded interview questions
 │
+├── frontend/                   ← Static web UI (served by FastAPI StaticFiles)
+│   ├── index.html              ← Public landing page
+│   ├── login.html              ← Supabase magic link sign-in
+│   ├── onboarding.html         ← First-run 5-step setup wizard
+│   ├── dashboard.html          ← Home screen
+│   ├── interview.html          ← Interview session flow
+│   ├── report.html             ← Post-interview feedback report
+│   ├── memory.html             ← Memory browser + gap analysis
+│   ├── documents.html          ← Upload resume / AI exports
+│   ├── chat.html               ← Conversational memory search
+│   ├── history.html            ← Past sessions list
+│   ├── settings.html           ← User profile settings
+│   ├── auth/callback.html      ← Supabase auth callback handler
+│   ├── css/
+│   │   ├── design-system.css   ← CSS variables, base reset
+│   │   ├── components.css      ← Buttons, cards, inputs, toasts
+│   │   └── layout.css          ← Sidebar, topbar, page shell
+│   └── js/
+│       ├── auth.js             ← Supabase auth wrapper (Auth object)
+│       ├── api.js              ← All fetch() calls to backend (API object)
+│       ├── utils.js            ← Shared helpers
+│       └── components.js       ← Alpine.js component factories
+│
 └── tests/
     ├── test_parsers.py
     └── test_interview.py
@@ -168,7 +189,7 @@ mnemix/
 FastAPI          — async API framework
 Typer            — terminal CLI (rich output)
 Rich             — beautiful terminal formatting
-SQLite           — local database (aiosqlite for async)
+Supabase PostgreSQL — database (asyncpg for async)
 SQLAlchemy       — ORM (async mode)
 Pydantic v2      — data validation
 PyMuPDF (fitz)   — PDF parsing (local, free)
@@ -257,10 +278,10 @@ OpenRouter: Free tier for some models. Backup/fallback only.
 
 ---
 
-## DATABASE SCHEMA (SQLite for demo)
+## DATABASE SCHEMA (Supabase PostgreSQL)
 
 ```sql
--- Single user for demo, no auth needed
+-- Supabase PostgreSQL — run `python database.py` to create tables
 
 CREATE TABLE IF NOT EXISTS memories (
     id          TEXT PRIMARY KEY,
@@ -271,9 +292,9 @@ CREATE TABLE IF NOT EXISTS memories (
     confidence  REAL DEFAULT 0.0,
     source      TEXT,               -- resume/chatgpt/claude/manual
     date_context TEXT,
-    has_outcome INTEGER DEFAULT 0,  -- boolean as int in SQLite
-    outcome_quantified INTEGER DEFAULT 0,
-    embedding   BLOB,               -- numpy array serialized
+    has_outcome BOOLEAN DEFAULT FALSE,
+    outcome_quantified BOOLEAN DEFAULT FALSE,
+    embedding   BYTEA,              -- numpy array serialized
     created_at  TEXT DEFAULT (datetime('now')),
     access_count INTEGER DEFAULT 0,
     last_accessed TEXT
@@ -297,8 +318,8 @@ CREATE TABLE IF NOT EXISTS session_answers (
     answer_order INTEGER,
     memory_match_score REAL,
     specificity_score REAL,
-    outcome_stated INTEGER DEFAULT 0,
-    outcome_quantified INTEGER DEFAULT 0,
+    outcome_stated BOOLEAN DEFAULT FALSE,
+    outcome_quantified BOOLEAN DEFAULT FALSE,
     memory_opportunity TEXT,
     total_score REAL,
     feedback_text TEXT,
@@ -714,8 +735,8 @@ MODEL_EVAL_SYSDESIGN=deepseek-r1
 MODEL_FEEDBACK=deepseek-v4-pro
 MODEL_GAP_ANALYSIS=deepseek-r1
 
-# Database
-DATABASE_URL=sqlite+aiosqlite:///./mnemix.db
+# Database (Supabase PostgreSQL — password URL-encoded)
+DATABASE_URL=postgresql+asyncpg://postgres:password@db.your-project.supabase.co:5432/postgres
 
 # Embeddings
 EMBEDDING_MODEL=all-MiniLM-L6-v2
@@ -739,7 +760,7 @@ Build one file at a time. Test each before moving on.
 Phase 1: Foundation
 ─────────────────────────────────────────────────
 1.  config.py              ← Load all env vars
-2.  database.py            ← SQLite setup + create tables
+2.  database.py            ← PostgreSQL setup + create tables
 3.  models/schemas.py      ← All Pydantic schemas
 4.  llm/router.py          ← Model routing logic
 5.  llm/prompts.py         ← All prompts (strings only)
@@ -793,7 +814,7 @@ rich==13.9.0
 pydantic==2.9.2
 python-dotenv==1.0.1
 sqlalchemy[asyncio]==2.0.36
-aiosqlite==0.20.0
+asyncpg==0.30.0
 pymupdf==1.24.13
 sentence-transformers==3.3.1
 openai==1.54.3
@@ -810,9 +831,9 @@ numpy==2.1.3
 These decisions were made deliberately. Do not change without reason.
 
 ```
-Decision: SQLite for demo (not Supabase)
-Reason:   Zero setup time, runs locally, no network dependency.
-          Supabase is production path — same schema, just different connection.
+Decision: Supabase PostgreSQL (migrated from SQLite)
+Reason:   Already using Supabase for auth — same project, no extra infra.
+          Eliminates SQLite locking issues entirely. WAL/retry workarounds removed.
 
 Decision: sentence-transformers for embeddings (not OpenAI)
 Reason:   Free, local, no API cost, no latency. 384-dim is enough for demo.
@@ -868,10 +889,10 @@ Python 3.14.4:
 - All modern async features available
 - Use asyncio.TaskGroup for parallel tasks (Python 3.11+)
 
-SQLite limits:
-- No pgvector extension (use numpy for similarity search in demo)
-- Store embeddings as BLOB (serialized numpy array)
-- Switch to Supabase + pgvector for production
+PostgreSQL / Supabase:
+- Embeddings stored as BYTEA (serialized numpy float32 array)
+- Similarity search uses in-memory numpy cosine — future: pgvector operators
+- SSL required; asyncpg connect_args uses ssl.CERT_NONE (Supabase self-signed CA)
 
 sentence-transformers first load:
 - Downloads model (~90MB) on first run
@@ -892,8 +913,8 @@ sentence-transformers first load:
 ❌ Never skip error handling on LLM calls (they fail occasionally)
 ❌ Never store PII (name, email, phone) in the database
 ❌ Never use string formatting for SQL queries
-❌ Never add authentication/Redis/Celery in v0.1 (out of scope)
-❌ Never build UI in v0.1 (terminal only)
+❌ Never add Redis/Celery (out of scope for v0.1)
+❌ Never store Supabase credentials in source code — use meta tags in HTML, .env for backend
 ```
 
 ---

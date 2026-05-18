@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Feedback Report — MNEMIX</title>
+
+  <meta name="supabase-url" content="https://fodnuozowtdesptqbray.supabase.co">
+  <meta name="supabase-anon-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvZG51b3pvd3RkZXNwdHFicmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDIxMzgsImV4cCI6MjA5NDY3ODEzOH0.O1YmQOEqWre1wAjYh3UKa1ANTmsOWAMl98JAsB129u4">
+
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/layout.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/components.js"></script>
+
+  <style>
+    .report-page { background: var(--color-bg); min-height: 100vh; }
+    .report-topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 var(--space-8); height: var(--topbar-height);
+      border-bottom: 1px solid var(--color-border);
+      position: sticky; top: 0; background: var(--color-bg); z-index: 10;
+    }
+    .report-body { max-width: 800px; margin: 0 auto; padding: var(--space-10) var(--space-8); }
+
+    /* Score header */
+    .score-hero { text-align: center; padding: var(--space-10) 0 var(--space-12); }
+    .score-number {
+      font-family: var(--font-mono); font-size: 96px; font-weight: 600; line-height: 1;
+      margin-bottom: var(--space-4);
+      animation: countUp 0.8s ease-out;
+    }
+    .score-bar-wrap { max-width: 280px; margin: 0 auto var(--space-4); }
+    .score-bar-wrap .progress { height: 6px; }
+    .score-verdict { font-size: 16px; font-style: italic; color: var(--text-secondary); }
+    .score-meta { font-size: 13px; color: var(--text-tertiary); margin-top: var(--space-2); font-family: var(--font-mono); }
+
+    /* Dimension cards */
+    .dimension-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-3); margin-bottom: var(--space-10); }
+    .dimension-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-4); text-align: center; }
+    .dimension-value { font-family: var(--font-mono); font-size: 22px; font-weight: 600; }
+    .dimension-max { font-size: 13px; color: var(--text-tertiary); }
+    .dimension-label { font-size: 11px; color: var(--text-secondary); margin-top: var(--space-1); text-transform: uppercase; letter-spacing: 0.05em; font-family: var(--font-mono); }
+    .dimension-mini-bar { height: 3px; background: var(--color-border-2); border-radius: var(--radius-full); margin-top: var(--space-2); overflow: hidden; }
+    .dimension-mini-fill { height: 100%; border-radius: var(--radius-full); background: var(--color-primary); }
+
+    /* Q accordion */
+    .q-accordion { margin-bottom: var(--space-3); }
+    .q-header {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-4) var(--space-5);
+      background: var(--color-surface); border: 1px solid var(--color-border);
+      border-radius: var(--radius-md); cursor: pointer;
+      transition: border-color var(--transition-fast);
+    }
+    .q-header:hover { border-color: var(--color-border-2); }
+    .q-header.open { border-color: var(--color-border-2); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+    .q-num { font-family: var(--font-mono); font-size: 13px; color: var(--text-tertiary); flex-shrink: 0; width: 24px; }
+    .q-title { flex: 1; font-size: 13px; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .q-body {
+      background: var(--color-surface); border: 1px solid var(--color-border-2);
+      border-top: none; border-radius: 0 0 var(--radius-md) var(--radius-md);
+      padding: var(--space-5);
+    }
+    .q-answer-block {
+      background: var(--color-surface-2); border-radius: var(--radius-sm);
+      padding: var(--space-3) var(--space-4); margin-bottom: var(--space-4);
+      font-size: 13px; line-height: 1.7; color: var(--text-secondary);
+    }
+    .feedback-line { font-size: 13px; line-height: 1.6; margin-bottom: var(--space-2); }
+    .feedback-line strong { font-weight: 600; }
+
+    /* Patterns section */
+    .patterns-section { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: var(--space-6); margin-bottom: var(--space-8); }
+    .patterns-col { flex: 1; }
+    .pattern-item { font-size: 13px; color: var(--text-secondary); padding: 4px 0; display: flex; align-items: flex-start; gap: var(--space-2); }
+    .most-important-fix {
+      margin-top: var(--space-5); padding: var(--space-4);
+      background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.3);
+      border-radius: var(--radius-md);
+    }
+
+    /* Next session */
+    .next-section { text-align: center; padding: var(--space-8) 0; }
+
+    @media (max-width: 767px) {
+      .dimension-grid { grid-template-columns: repeat(2, 1fr); }
+      .score-number { font-size: 72px; }
+      .report-body { padding: var(--space-6) var(--space-4); }
+    }
+  </style>
+</head>
+<body class="report-page">
+
+<div x-data="reportPage()" x-init="init()">
+
+  <!-- Top bar -->
+  <div class="report-topbar">
+    <div class="flex items-center gap-3">
+      <div class="sidebar-logo-mark" style="width:24px;height:24px;font-size:11px;">M</div>
+      <a href="/dashboard.html" class="btn btn-ghost btn-sm">
+        <i data-lucide="arrow-left" style="width:13px;height:13px;"></i>
+        Dashboard
+      </a>
+    </div>
+    <div class="flex items-center gap-2">
+      <button class="btn btn-secondary btn-sm" onclick="window.print()">
+        <i data-lucide="download" style="width:13px;height:13px;"></i>
+        Save PDF
+      </button>
+      <a href="/interview.html" class="btn btn-primary btn-sm">New session →</a>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <template x-if="loading">
+    <div style="display:flex;align-items:center;justify-content:center;height:60vh;">
+      <div class="spinner spinner-lg"></div>
+    </div>
+  </template>
+
+  <!-- Evaluating poll state -->
+  <template x-if="!loading && polling">
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;gap:var(--space-4);">
+      <div class="spinner spinner-lg"></div>
+      <p class="text-secondary">Still evaluating your responses…</p>
+    </div>
+  </template>
+
+  <!-- Report content -->
+  <template x-if="!loading && !polling && report">
+    <div class="report-body">
+
+      <!-- Score hero -->
+      <div class="score-hero">
+        <div class="score-meta">
+          <span x-text="Utils.sessionTypeLabel(report.session_type)"></span>
+          &nbsp;·&nbsp;
+          <span x-text="Utils.formatDate(report.started_at)"></span>
+        </div>
+        <div class="score-number" :style="`color: ${Utils.scoreColor(report.overall_score)}`" x-text="Math.round(report.overall_score || 0)"></div>
+        <div class="score-bar-wrap">
+          <div class="progress">
+            <div class="progress-fill" :class="Utils.scoreProgressClass(report.overall_score)"
+              :style="`width: ${report.overall_score || 0}%`"></div>
+          </div>
+        </div>
+        <div class="score-verdict" x-text="scoreVerdict(report.overall_score)"></div>
+      </div>
+
+      <!-- Dimension breakdown -->
+      <div class="section-title mb-4">Score Breakdown</div>
+      <div class="dimension-grid mb-10">
+        <template x-for="dim in dimensions" :key="dim.key">
+          <div class="dimension-card">
+            <div class="dimension-value" :style="`color: ${Utils.scoreColor((dim.value / dim.max) * 100)}`" x-text="dim.value.toFixed(1)"></div>
+            <div class="dimension-max" x-text="`/ ${dim.max}`"></div>
+            <div class="dimension-label" x-text="dim.label"></div>
+            <div class="dimension-mini-bar">
+              <div class="dimension-mini-fill" :style="`width: ${(dim.value / dim.max) * 100}%; background: ${Utils.scoreColor((dim.value / dim.max) * 100)}`"></div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Per-question breakdown -->
+      <div class="section-title mb-4">Question by Question</div>
+      <template x-for="(q, idx) in report.evaluations" :key="q.question_id">
+        <div class="q-accordion">
+          <div class="q-header" :class="{ open: openQ === idx }" @click="openQ = openQ === idx ? null : idx">
+            <span class="q-num" x-text="`Q${idx + 1}`"></span>
+            <span class="q-title" x-text="Utils.truncate(q.question_text, 80)"></span>
+            <span class="badge" :class="Utils.scoreBadgeClass(q.total_score)" x-text="`${Math.round(q.total_score || 0)}%`"></span>
+            <i :data-lucide="openQ === idx ? 'chevron-up' : 'chevron-down'" style="width:14px;height:14px;color:var(--text-tertiary);flex-shrink:0;"></i>
+          </div>
+
+          <div class="q-body" x-show="openQ === idx" x-cloak>
+            <div class="text-xs text-tertiary font-mono mb-3" x-text="q.question_text"></div>
+
+            <!-- Answer preview -->
+            <div class="q-answer-block">
+              <div class="text-xs text-tertiary mb-2">Your answer</div>
+              <span x-text="showFullAnswer === idx ? q.answer_text : Utils.truncate(q.answer_text, 200)"></span>
+              <template x-if="q.answer_text && q.answer_text.length > 200">
+                <button class="btn btn-ghost btn-sm mt-1" style="font-size:11px;" @click="showFullAnswer = showFullAnswer === idx ? null : idx">
+                  <span x-text="showFullAnswer === idx ? 'Show less' : 'Show full'"></span>
+                </button>
+              </template>
+            </div>
+
+            <!-- Scores mini row -->
+            <div class="flex gap-3 mb-4 flex-wrap">
+              <div class="badge badge-neutral font-mono" x-text="`memory ${q.memory_match}/3`"></div>
+              <div class="badge badge-neutral font-mono" x-text="`specificity ${q.specificity}/3`"></div>
+              <div class="badge" :class="q.outcome_stated ? 'badge-success' : 'badge-danger'" x-text="q.outcome_stated ? '✓ outcome' : '✗ no outcome'"></div>
+              <div class="badge" :class="q.outcome_quantified ? 'badge-success' : 'badge-neutral'" x-text="q.outcome_quantified ? '✓ quantified' : '— not quantified'"></div>
+              <div class="badge badge-neutral font-mono" x-text="`coherence ${q.coherence}/2`"></div>
+            </div>
+
+            <!-- Specific feedback -->
+            <template x-if="q.specific_feedback">
+              <div class="feedback-line text-secondary" x-text="q.specific_feedback"></div>
+            </template>
+
+            <!-- Memory opportunity missed -->
+            <template x-if="q.memory_opportunity_missed">
+              <div class="feedback-line mt-3" style="color: var(--color-accent);">
+                <strong>💡 Memory opportunity:</strong>
+                <span x-text="q.memory_opportunity_missed"></span>
+              </div>
+            </template>
+
+            <div x-init="$nextTick(() => lucide.createIcons())"></div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Patterns section -->
+      <template x-if="report.report_text">
+        <div>
+          <div class="section-title mt-8 mb-4">Feedback</div>
+          <div class="patterns-section">
+            <div class="text-sm" style="white-space: pre-wrap; line-height: 1.8; color: var(--text-secondary);" x-text="report.report_text"></div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Next session -->
+      <div class="next-section">
+        <div class="section-title mb-4">What's next?</div>
+        <div class="flex gap-3 justify-center flex-wrap">
+          <a href="/interview.html" class="btn btn-primary btn-lg">Start new session →</a>
+          <a href="/memory.html#gaps" class="btn btn-secondary btn-lg">Fill memory gaps</a>
+          <a href="/history.html" class="btn btn-ghost btn-lg">View history</a>
+        </div>
+      </div>
+
+    </div>
+  </template>
+
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<script>
+  function reportPage() {
+    return {
+      ...appBase('history'),
+      loading: true,
+      polling: false,
+      report: null,
+      openQ: null,
+      showFullAnswer: null,
+
+      get dimensions() {
+        if (!this.report?.evaluations?.length) return [];
+        const evals = this.report.evaluations;
+        const avg = key => evals.reduce((s, e) => s + (e[key] || 0), 0) / evals.length;
+        return [
+          { key: 'memory_match',  label: 'Memory Match',   value: avg('memory_match'),  max: 3 },
+          { key: 'specificity',   label: 'Specificity',     value: avg('specificity'),   max: 3 },
+          { key: 'outcome',       label: 'Outcome Quality', value: avg('outcome_stated') + avg('outcome_quantified'), max: 2 },
+          { key: 'coherence',     label: 'Coherence',       value: avg('coherence'),     max: 2 },
+        ];
+      },
+
+      scoreVerdict(score) {
+        if (!score) return '';
+        if (score >= 85) return '"Strong performance — your experience shows."';
+        if (score >= 70) return '"Good foundation. A few tweaks will sharpen it."';
+        if (score >= 55) return '"Solid start. Focus on specificity and outcomes."';
+        return '"Room to grow. More practice will build confidence."';
+      },
+
+      async init() {
+        await this._init();
+        const sessionId = Utils.getParam('id');
+        if (!sessionId) {
+          Utils.toast('No session ID found', 'error');
+          window.location.href = '/history.html';
+          return;
+        }
+        await this.loadReport(sessionId);
+        this.$nextTick(() => lucide.createIcons());
+      },
+
+      async loadReport(sessionId) {
+        this.loading = true;
+        try {
+          const data = await API.getEvaluation(sessionId);
+          if (data.status === 'evaluating' || data.status === 'in_progress') {
+            this.loading = false;
+            this.polling = true;
+            this.pollReport(sessionId);
+          } else {
+            this.report = data;
+            this.loading = false;
+          }
+        } catch (err) {
+          this.handleError(err, 'Failed to load report');
+          this.loading = false;
+        }
+      },
+
+      async pollReport(sessionId) {
+        let attempts = 0;
+        const poll = async () => {
+          try {
+            const data = await API.getEvaluation(sessionId);
+            if (data.status === 'complete') {
+              this.report = data;
+              this.polling = false;
+              this.$nextTick(() => lucide.createIcons());
+              return;
+            }
+          } catch { /* ignore */ }
+          attempts++;
+          if (attempts < 60) setTimeout(poll, 5000);
+          else { this.polling = false; Utils.toast('Evaluation timed out', 'error'); }
+        };
+        poll();
+      }
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded', () => lucide.createIcons());
+</script>
+
+</body>
+</html>
