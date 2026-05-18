@@ -3,11 +3,11 @@
 ## Priority Order
 
 - [x] 1. Port consistency — standardize on 8000 (uvicorn default, cli.py already uses it)
-- [ ] 2. extractor.py — fix return type annotation `-> int` → `tuple[int, list[MemoryCreate]]`
-- [ ] 3. extractor.py — remove premature `status="complete"` inside `process_ingestion_pipeline` (caller handles final status)
-- [ ] 4. api/ingest.py — reuse `job` reference instead of re-fetching after `db.flush()`
-- [ ] 5. main.py — pre-load memory retriever in lifespan
-- [ ] 6. models/schemas.py — add Literal category validation to `MemoryAddRequest`
+- [x] 2. extractor.py — fix return type annotation `-> int` → `tuple[int, list[MemoryCreate]]`
+- [x] 3. extractor.py — remove premature `status="complete"` inside `process_ingestion_pipeline` (caller handles final status)
+- [x] 4. api/ingest.py — reuse `job` reference instead of re-fetching after `db.flush()`
+- [x] 5. main.py — pre-load memory retriever in lifespan
+- [x] 6. models/schemas.py — add Literal category validation to `MemoryAddRequest`
 
 ## Notes
 - Port: cli.py says 8000, docs say 8080. Fix docs (not code).
