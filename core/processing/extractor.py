@@ -97,7 +97,6 @@ async def process_ingestion_pipeline(
     """
     from database import IngestionJobORM
     from sqlalchemy import select
-    from datetime import datetime, timezone
 
     # Update job: set total_segments
     result = await db.execute(select(IngestionJobORM).where(IngestionJobORM.id == job_id))
@@ -105,7 +104,7 @@ async def process_ingestion_pipeline(
     if job:
         job.total_segments = len(segments)
         job.status = "processing"
-        await db.commit()
+        await db.flush()
 
     # Step 1: classify all segments (fast, rule-based mostly)
     for seg in segments:
@@ -133,12 +132,9 @@ async def process_ingestion_pipeline(
         # Update progress
         if job:
             processed = min(i + batch_size, len(professional_segs))
-            result = await db.execute(select(IngestionJobORM).where(IngestionJobORM.id == job_id))
-            job = result.scalar_one_or_none()
-            if job:
-                job.processed = processed
-                job.memories_found = len(all_memories)
-                await db.commit()
+            job.processed = processed
+            job.memories_found = len(all_memories)
+            await db.flush()
 
         # Rate limit delay between batches (skip after last batch)
         if i + batch_size < len(professional_segs):

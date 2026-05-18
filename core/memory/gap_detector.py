@@ -40,7 +40,7 @@ async def detect_gaps(db: AsyncSession) -> list[dict]:
                 "need": need,
                 "deficit": need - have,
                 "priority": config["weight"],
-                "suggested_question": None,
+                "suggested_questions": [],
             })
 
     gaps.sort(key=lambda g: (WEIGHT_ORDER.get(g["priority"], 99), -g["deficit"]))
@@ -70,8 +70,8 @@ async def detect_gaps(db: AsyncSession) -> list[dict]:
                 cat = item.get("category")
                 question = item.get("question")
                 for g in gaps:
-                    if g["category"] == cat and g["suggested_question"] is None:
-                        g["suggested_question"] = question
+                    if g["category"] == cat and not g["suggested_questions"]:
+                        g["suggested_questions"] = [question]
                         break
         except (LLMError, ValueError) as e:
             logger.warning(f"Gap analysis LLM failed: {e}")
@@ -94,7 +94,7 @@ async def get_gap_summary(db: AsyncSession) -> str:
             f"  [{priority_color}]{g['category']:25s}[/{priority_color}] "
             f"{bar} {g['have']}/{g['need']}  [{g['priority'].upper()}]"
         )
-        if g.get("suggested_question"):
-            lines.append(f"    → {g['suggested_question']}")
+        if g.get("suggested_questions"):
+            lines.append(f"    → {g['suggested_questions'][0]}")
 
     return "\n".join(lines)
