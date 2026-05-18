@@ -37,6 +37,7 @@ def _split_by_topic(messages: list[str]) -> list[list[str]]:
     for msg in messages[1:]:
         prev_text = groups[-1][-1]
         try:
+            # embed() is synchronous CPU-bound — blocks event loop; acceptable for single-user demo
             sim = cosine_similarity(embed(prev_text[-200:]), embed(msg[:200]))
             distance = 1.0 - sim
         except Exception:

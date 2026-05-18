@@ -1,6 +1,13 @@
 from __future__ import annotations
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, ConfigDict
+
+MemoryCategory = Literal[
+    "leadership", "conflict_resolution", "failure_learning", "technical_achievement",
+    "collaboration", "ambiguity_handling", "initiative", "communication", "pressure_handling",
+    "system_design", "debugging", "tech_decisions", "performance_optimization", "architecture",
+    "career_goal", "value", "strength", "working_style", "self_awareness",
+]
 
 
 # ─── Memory ───────────────────────────────────────────────────────────────────
@@ -140,7 +147,7 @@ class IngestResponse(BaseModel):
 
 class MemoryAddRequest(BaseModel):
     content: str
-    category: str
+    category: MemoryCategory
     themes: list[str] = []
 
 

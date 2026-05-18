@@ -89,11 +89,11 @@ async def process_ingestion_pipeline(
     job_id: str,
     db: AsyncSession,
     field: str = "software_engineering",
-) -> int:
+) -> tuple[int, list[MemoryCreate]]:
     """
     Classify all segments, then extract memories in batches with rate-limit delay.
-    Updates the IngestionJob record as it progresses.
-    Returns total memories found.
+    Updates the IngestionJob record progress during extraction.
+    Returns (count, memories) — caller is responsible for saving to DB and completing the job.
     """
     from database import IngestionJobORM
     from sqlalchemy import select
@@ -143,14 +143,5 @@ async def process_ingestion_pipeline(
         # Rate limit delay between batches (skip after last batch)
         if i + batch_size < len(professional_segs):
             await asyncio.sleep(delay)
-
-    # Final job update
-    result = await db.execute(select(IngestionJobORM).where(IngestionJobORM.id == job_id))
-    job = result.scalar_one_or_none()
-    if job:
-        job.status = "complete"
-        job.memories_found = len(all_memories)
-        job.completed_at = datetime.now(timezone.utc).isoformat()
-        await db.commit()
 
     return len(all_memories), all_memories

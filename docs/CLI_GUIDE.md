@@ -4,7 +4,7 @@ The CLI (`cli.py`) is the primary user interface for MNEMIX. It calls the FastAP
 
 ```powershell
 # Start the server (Terminal 1)
-.\venv\Scripts\python -m uvicorn main:app --port 8080
+.\venv\Scripts\python -m uvicorn main:app
 
 # Run CLI commands (Terminal 2)
 .\venv\Scripts\python cli.py <command>

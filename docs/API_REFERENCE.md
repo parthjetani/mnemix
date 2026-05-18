@@ -1,6 +1,6 @@
 # MNEMIX — API Reference
 
-All endpoints are prefixed with `/api/v1`. The server runs on `http://localhost:8080` by default.
+All endpoints are prefixed with `/api/v1`. The server runs on `http://localhost:8000` by default (uvicorn default port).
 
 ---
 

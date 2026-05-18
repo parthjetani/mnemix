@@ -45,7 +45,7 @@ All other values have working defaults. See [CONFIGURATION.md](CONFIGURATION.md)
 
 ```powershell
 # From D:\WorkSpace\mnemix
-.\venv\Scripts\python -m uvicorn main:app --port 8080
+.\venv\Scripts\python -m uvicorn main:app
 ```
 
 On first start, the server:
@@ -58,12 +58,12 @@ Expected output:
 INFO:     Started server process [...]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
-INFO:     Uvicorn running on http://127.0.0.1:8080
+INFO:     Uvicorn running on http://127.0.0.1:8000
 ```
 
 For development with auto-reload:
 ```powershell
-.\venv\Scripts\python -m uvicorn main:app --port 8080 --reload
+.\venv\Scripts\python -m uvicorn main:app --reload
 ```
 
 ## Running the CLI
@@ -86,12 +86,12 @@ interview  Run a full mock interview session
 
 ## Port Configuration
 
-The CLI connects to `http://localhost:8000` by default. If port 8000 is in use:
+The CLI connects to `http://localhost:8000` by default (uvicorn's default port). If port 8000 is in use:
 
-1. Start the server on a different port: `--port 8080`
+1. Start the server on a different port: `--port 8001`
 2. Update `BASE_URL` in `cli.py`:
    ```python
-   BASE_URL = "http://localhost:8080/api/v1"
+   BASE_URL = "http://localhost:8001/api/v1"
    ```
 
 ## First Use: Ingest Your Data
@@ -119,7 +119,7 @@ Ingestion runs as a background job. The CLI polls for status and shows a progres
 
 ```powershell
 # Health check
-curl http://localhost:8080/api/v1/health
+curl http://localhost:8000/api/v1/health
 # → {"status":"ok","version":"0.1.0"}
 
 # Check question bank loaded

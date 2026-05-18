@@ -26,14 +26,16 @@ async def _run_resume_ingestion(job_id: str, temp_path: Path) -> None:
     from database import async_session_factory
     async with async_session_factory() as db:
         try:
+            job = await db.get(IngestionJobORM, job_id)
+            if not job:
+                return
+
+            job.status = "processing"
+            job.progress = 10
+            await db.flush()
+
             result = await parse_resume(temp_path)
             raw_memories = result.get("raw_memories", [])
-
-            job_result = await db.get(IngestionJobORM, job_id)
-            if job_result:
-                job_result.status = "processing"
-                job_result.progress = 10
-                await db.flush()
 
             saved = 0
             for mem in raw_memories:
@@ -42,24 +44,18 @@ async def _run_resume_ingestion(job_id: str, temp_path: Path) -> None:
                 await memory_retriever.add_to_index(mid, embedding)
                 saved += 1
 
-            await db.flush()
-
-            job_result = await db.get(IngestionJobORM, job_id)
-            if job_result:
-                job_result.status = "complete"
-                job_result.progress = 100
-                job_result.memories_found = saved
-                await db.flush()
-
+            job.status = "complete"
+            job.progress = 100
+            job.memories_found = saved
             await db.commit()
         except Exception as e:
             await db.rollback()
-            job_result = await db.get(IngestionJobORM, job_id)
-            if job_result:
-                job_result.status = "failed"
-                job_result.error_message = str(e)
-                await db.flush()
-                await db.commit()
+            async with async_session_factory() as err_db:
+                job = await err_db.get(IngestionJobORM, job_id)
+                if job:
+                    job.status = "failed"
+                    job.error_message = str(e)
+                    await err_db.commit()
         finally:
             temp_path.unlink(missing_ok=True)
 
@@ -68,6 +64,10 @@ async def _run_ai_export_ingestion(job_id: str, temp_path: Path, source_type: st
     from database import async_session_factory
     async with async_session_factory() as db:
         try:
+            job = await db.get(IngestionJobORM, job_id)
+            if not job:
+                return
+
             if source_type == "chatgpt":
                 conversations = await parse_chatgpt_export(temp_path)
             else:
@@ -78,35 +78,31 @@ async def _run_ai_export_ingestion(job_id: str, temp_path: Path, source_type: st
                 segs = await segment([conv])
                 all_segments.extend(segs)
 
-            job_result = await db.get(IngestionJobORM, job_id)
-            if job_result:
-                job_result.status = "processing"
-                job_result.progress = 20
-                await db.flush()
+            job.status = "processing"
+            job.progress = 20
+            await db.flush()
 
-            total_saved, memories = await process_ingestion_pipeline(all_segments, job_id, db)
+            _count, memories = await process_ingestion_pipeline(all_segments, job_id, db)
 
+            saved = 0
             for mem in memories:
                 embedding = embed(mem.content)
                 mid = await save_memory(mem, embedding, db)
                 await memory_retriever.add_to_index(mid, embedding)
+                saved += 1
 
-            job_result = await db.get(IngestionJobORM, job_id)
-            if job_result:
-                job_result.status = "complete"
-                job_result.progress = 100
-                job_result.memories_found = total_saved
-                await db.flush()
-
+            job.status = "complete"
+            job.progress = 100
+            job.memories_found = saved
             await db.commit()
         except Exception as e:
             await db.rollback()
-            job_result = await db.get(IngestionJobORM, job_id)
-            if job_result:
-                job_result.status = "failed"
-                job_result.error_message = str(e)
-                await db.flush()
-                await db.commit()
+            async with async_session_factory() as err_db:
+                job = await err_db.get(IngestionJobORM, job_id)
+                if job:
+                    job.status = "failed"
+                    job.error_message = str(e)
+                    await err_db.commit()
         finally:
             temp_path.unlink(missing_ok=True)
 

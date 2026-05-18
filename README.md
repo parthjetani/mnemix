@@ -40,7 +40,7 @@ copy .env.example .env
 # Edit .env: add GROQ_API_KEY and OPENROUTER_API_KEY
 
 # 3. Start the server (Terminal 1)
-.\venv\Scripts\python -m uvicorn main:app --port 8080
+.\venv\Scripts\python -m uvicorn main:app
 
 # 4. Ingest your data (Terminal 2)
 .\venv\Scripts\python cli.py ingest --resume resume.pdf
