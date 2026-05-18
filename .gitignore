@@ -1,0 +1,39 @@
+# Claude Code local state
+.claude/
+
+# Environment
+.env
+
+# Virtual environment
+venv/
+.venv/
+
+# Database
+mnemix.db
+*.db-shm
+*.db-wal
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Temp files from ingestion
+*.tmp
+tmp/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Sentence-transformers model cache (large, re-downloaded on first run)
+# Uncomment if you want to exclude the HuggingFace cache:
+# ~/.cache/huggingface/

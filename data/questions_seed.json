@@ -1,0 +1,70 @@
+[
+  {"id": "q_career_001", "text": "Tell me about yourself and your engineering journey so far.", "category": "career_goal", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_career_002", "text": "Where do you want to be in your career 3 years from now, and why?", "category": "career_goal", "field": null, "seniority": null, "source": "seeded"},
+
+  {"id": "q_lead_001", "text": "Tell me about a time you led a project that faced significant pushback from the team or stakeholders.", "category": "leadership", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_lead_002", "text": "Describe a situation where you had to make a critical technical decision without all the information you needed.", "category": "leadership", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_lead_003", "text": "Tell me about a time you had to influence a technical direction without having formal authority.", "category": "leadership", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_lead_004", "text": "Describe a moment when you stepped up to lead when no one else did. What happened?", "category": "leadership", "field": null, "seniority": null, "source": "seeded"},
+
+  {"id": "q_conflict_001", "text": "Tell me about a time you disagreed with a technical decision made by a manager or senior engineer. How did you handle it?", "category": "conflict_resolution", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_conflict_002", "text": "Describe a situation where two team members had a serious disagreement. What did you do?", "category": "conflict_resolution", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_conflict_003", "text": "Tell me about a time a client or stakeholder pushed back hard on a technical recommendation. How did you respond?", "category": "conflict_resolution", "field": null, "seniority": null, "source": "seeded"},
+
+  {"id": "q_fail_001", "text": "Tell me about your most significant professional failure. What happened and what did you learn?", "category": "failure_learning", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_fail_002", "text": "Describe a project that went badly wrong. What was your role and what would you do differently?", "category": "failure_learning", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_fail_003", "text": "Tell me about a time you shipped something that broke in production. Walk me through what happened.", "category": "failure_learning", "field": null, "seniority": null, "source": "seeded"},
+
+  {"id": "q_tech_001", "text": "Tell me about the most technically challenging problem you solved in the last 12 months.", "category": "technical_achievement", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_tech_002", "text": "Describe a feature or system you built that you are most proud of. What made it difficult?", "category": "technical_achievement", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_tech_003", "text": "Tell me about a time you significantly improved the performance of a system. What was the before and after?", "category": "technical_achievement", "field": "software_engineering", "seniority": null, "source": "seeded"},
+  {"id": "q_tech_004", "text": "Describe a technical achievement you are proud of that happened under significant time pressure.", "category": "technical_achievement", "field": null, "seniority": null, "source": "seeded"},
+
+  {"id": "q_collab_001", "text": "Tell me about a time you worked on a cross-functional team. How did you ensure alignment?", "category": "collaboration", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_collab_002", "text": "Describe a situation where you had to bring together people with very different working styles to ship something.", "category": "collaboration", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_collab_003", "text": "Tell me about a time a teammate was struggling. What did you do?", "category": "collaboration", "field": null, "seniority": null, "source": "seeded"},
+
+  {"id": "q_ambig_001", "text": "Tell me about a time you had to make progress on a project with very unclear requirements.", "category": "ambiguity_handling", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_ambig_002", "text": "Describe a situation where the scope of your work kept changing. How did you manage it?", "category": "ambiguity_handling", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_ambig_003", "text": "Tell me about a time you had to start building something before the full picture was clear.", "category": "ambiguity_handling", "field": null, "seniority": null, "source": "seeded"},
+
+  {"id": "q_init_001", "text": "Tell me about a time you identified a problem no one else was paying attention to and fixed it anyway.", "category": "initiative", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_init_002", "text": "Describe a time you proposed and drove an improvement that wasn't part of your job description.", "category": "initiative", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_init_003", "text": "Tell me about a time you saw a gap in your team's processes and took action to close it.", "category": "initiative", "field": null, "seniority": null, "source": "seeded"},
+
+  {"id": "q_comm_001", "text": "Tell me about a time you had to explain a complex technical concept to a non-technical stakeholder.", "category": "communication", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_comm_002", "text": "Describe a situation where miscommunication caused a real problem. How did you recover?", "category": "communication", "field": null, "seniority": null, "source": "seeded"},
+
+  {"id": "q_press_001", "text": "Tell me about a time you were under extreme pressure with a hard deadline. How did you perform?", "category": "pressure_handling", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_press_002", "text": "Describe a production incident you were involved in. What was your role and how did it resolve?", "category": "pressure_handling", "field": null, "seniority": null, "source": "seeded"},
+
+  {"id": "q_sysdes_001", "text": "Tell me about a system you designed from scratch. Walk me through your key design decisions.", "category": "system_design", "field": "software_engineering", "seniority": null, "source": "seeded"},
+  {"id": "q_sysdes_002", "text": "Describe a time you had to redesign an existing system because it wasn't scaling. What did you change and why?", "category": "system_design", "field": "software_engineering", "seniority": null, "source": "seeded"},
+  {"id": "q_sysdes_003", "text": "Tell me about a time you had to make a trade-off between system simplicity and scalability.", "category": "system_design", "field": "software_engineering", "seniority": null, "source": "seeded"},
+
+  {"id": "q_debug_001", "text": "Tell me about the hardest bug you ever had to debug. How did you approach it?", "category": "debugging", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_debug_002", "text": "Describe a time you had to debug a production issue with very little information. What was your process?", "category": "debugging", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_debug_003", "text": "Tell me about a bug that turned out to be caused by something completely different from what you first suspected.", "category": "debugging", "field": null, "seniority": null, "source": "seeded"},
+
+  {"id": "q_dec_001", "text": "Tell me about a time you had to choose between two viable technical approaches. How did you decide?", "category": "tech_decisions", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_dec_002", "text": "Describe a situation where you pushed back on a technical requirement from a stakeholder. What happened?", "category": "tech_decisions", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_dec_003", "text": "Tell me about a time you chose to take on technical debt deliberately. Was it the right call?", "category": "tech_decisions", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_dec_004", "text": "Describe a technical decision you made that turned out to be wrong. What did you do when you realized it?", "category": "tech_decisions", "field": null, "seniority": null, "source": "seeded"},
+
+  {"id": "q_perf_001", "text": "Tell me about a time you identified and fixed a serious performance bottleneck in a production system.", "category": "performance_optimization", "field": "software_engineering", "seniority": null, "source": "seeded"},
+  {"id": "q_perf_002", "text": "Describe a system you optimized. What metrics improved and how did you measure success?", "category": "performance_optimization", "field": "software_engineering", "seniority": null, "source": "seeded"},
+
+  {"id": "q_arch_001", "text": "Tell me about an architectural decision that had the most lasting impact on a product you worked on.", "category": "architecture", "field": "software_engineering", "seniority": null, "source": "seeded"},
+  {"id": "q_arch_002", "text": "Describe a time you had to migrate from one architectural pattern to another while keeping the system running.", "category": "architecture", "field": "software_engineering", "seniority": null, "source": "seeded"},
+
+  {"id": "q_val_001", "text": "What engineering principle do you hold most strongly, and tell me about a time it was tested?", "category": "value", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_val_002", "text": "Describe a moment in your career where you had to choose between doing something fast and doing it right.", "category": "value", "field": null, "seniority": null, "source": "seeded"},
+
+  {"id": "q_str_001", "text": "Tell me about a strength you have that consistently shows up in how you work with others.", "category": "strength", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_str_002", "text": "Describe a piece of work that best represents what you are capable of at your best.", "category": "strength", "field": null, "seniority": null, "source": "seeded"},
+
+  {"id": "q_style_001", "text": "Tell me about a working environment where you did your best work. What made it work for you?", "category": "working_style", "field": null, "seniority": null, "source": "seeded"},
+  {"id": "q_style_002", "text": "Describe how you structure your day when you are in the middle of a complex, multi-week project.", "category": "working_style", "field": null, "seniority": null, "source": "seeded"},
+
+  {"id": "q_aware_001", "text": "Tell me about something you are actively working to improve about yourself as an engineer. What triggered this?", "category": "self_awareness", "field": null, "seniority": null, "source": "seeded"}
+]

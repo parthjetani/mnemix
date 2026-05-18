@@ -1,0 +1,90 @@
+import json
+import zipfile
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+def _timestamp_to_iso(ts) -> str | None:
+    if ts is None:
+        return None
+    try:
+        return datetime.fromtimestamp(float(ts), tz=timezone.utc).isoformat()
+    except Exception:
+        return None
+
+
+def _extract_messages_from_mapping(mapping: dict) -> list[str]:
+    """Extract user messages from ChatGPT's tree-structured mapping format."""
+    messages = []
+    for node in mapping.values():
+        msg = node.get("message")
+        if not msg:
+            continue
+        if msg.get("author", {}).get("role") != "user":
+            continue
+        content = msg.get("content", {})
+        parts = content.get("parts", [])
+        text = " ".join(str(p) for p in parts if isinstance(p, str)).strip()
+        if len(text.split()) >= 20:
+            messages.append(text)
+    return messages
+
+
+def _extract_messages_legacy(messages_list: list) -> list[str]:
+    """Handle older ChatGPT export format with flat messages list."""
+    results = []
+    for msg in messages_list:
+        if msg.get("role") != "user":
+            continue
+        text = msg.get("content", "").strip()
+        if len(text.split()) >= 20:
+            results.append(text)
+    return results
+
+
+def _parse_conversations(data: list) -> list[dict]:
+    segments = []
+    for conv in data:
+        conv_id = conv.get("id", "unknown")
+        created_at = _timestamp_to_iso(conv.get("create_time"))
+
+        if "mapping" in conv:
+            messages = _extract_messages_from_mapping(conv["mapping"])
+        elif "messages" in conv:
+            messages = _extract_messages_legacy(conv["messages"])
+        else:
+            continue
+
+        if messages:
+            segments.append({
+                "conversation_id": conv_id,
+                "messages": messages,
+                "source": "chatgpt",
+                "created_at": created_at,
+            })
+    return segments
+
+
+async def parse_chatgpt_export(file_path: Path) -> list[dict]:
+    suffix = file_path.suffix.lower()
+
+    if suffix == ".zip":
+        with zipfile.ZipFile(file_path, "r") as zf:
+            names = zf.namelist()
+            json_file = next(
+                (n for n in names if n.endswith("conversations.json")), None
+            )
+            if not json_file:
+                raise ValueError("conversations.json not found in ChatGPT ZIP export")
+            with zf.open(json_file) as f:
+                data = json.load(f)
+    elif suffix == ".json":
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    else:
+        raise ValueError(f"Unsupported file type: {suffix}. Expected .zip or .json")
+
+    if not isinstance(data, list):
+        raise ValueError("conversations.json must be a JSON array of conversations")
+
+    return _parse_conversations(data)
