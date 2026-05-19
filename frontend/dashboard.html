@@ -5,141 +5,132 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard — MNEMIX</title>
 
-  <!-- Supabase config -->
   <meta name="supabase-url" content="https://fodnuozowtdesptqbray.supabase.co">
   <meta name="supabase-anon-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvZG51b3pvd3RkZXNwdHFicmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDIxMzgsImV4cCI6MjA5NDY3ODEzOH0.O1YmQOEqWre1wAjYh3UKa1ANTmsOWAMl98JAsB129u4">
 
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-
-  <!-- Styles -->
   <link rel="stylesheet" href="/css/design-system.css">
   <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="/css/layout.css">
 
-  <!-- CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
-  <!-- App scripts -->
   <script src="/js/auth.js"></script>
   <script src="/js/api.js"></script>
   <script src="/js/utils.js"></script>
   <script src="/js/components.js"></script>
 
   <style>
-    .greeting { font-size: 13px; color: var(--text-secondary); }
+    .greeting {
+      font-size: 12px; color: var(--text-tertiary);
+      font-family: var(--font-mono);
+    }
+
+    /* Quick actions */
     .quick-actions { display: flex; flex-direction: column; gap: var(--space-2); }
     .quick-action-btn {
-      display: flex;
-      align-items: center;
-      gap: var(--space-3);
+      display: flex; align-items: center; gap: var(--space-3);
       padding: 10px 14px;
       background: var(--color-surface-2);
       border: 1px solid var(--color-border);
       border-radius: var(--radius-md);
-      font-size: 13px;
-      font-weight: 500;
+      font-size: 13px; font-weight: 500;
       color: var(--text-primary);
-      cursor: pointer;
-      transition: all var(--transition-fast);
+      cursor: pointer; transition: all var(--transition-fast);
       text-decoration: none;
     }
-    .quick-action-btn:hover { border-color: var(--color-primary); color: var(--color-accent); }
-    .quick-action-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+    .quick-action-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+    .quick-action-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
     .quick-action-divider { height: 1px; background: var(--color-border); margin: var(--space-2) 0; }
 
-    .session-row { display: flex; align-items: center; gap: var(--space-4); padding: 10px 0; border-bottom: 1px solid var(--color-border); }
+    /* Session rows */
+    .session-row {
+      display: flex; align-items: center; gap: var(--space-4);
+      padding: 10px 0; border-bottom: 1px solid var(--color-border);
+    }
     .session-row:last-child { border-bottom: none; }
     .session-score-bar { flex: 1; max-width: 80px; }
 
+    /* Memory mini cards */
     .memory-mini-card { padding: var(--space-4); cursor: default; }
     .memory-mini-card .content-preview {
-      font-size: 13px;
-      line-height: 1.6;
-      color: var(--text-secondary);
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
+      font-size: 13px; line-height: 1.65; color: var(--text-secondary);
+      display: -webkit-box; -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical; overflow: hidden;
     }
     .access-count {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--text-tertiary);
-      margin-top: var(--space-2);
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--text-tertiary); margin-top: var(--space-2);
     }
 
-    .chart-wrap { position: relative; height: 200px; }
+    /* Chart */
+    .chart-wrap { position: relative; height: 190px; }
     .chart-legend { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-4); }
     .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
-    .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .legend-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
   </style>
 </head>
 <body>
 
 <div x-data="dashboardPage()" x-init="init()">
-
   <div class="app-shell">
-    <!-- Sidebar (injected) -->
     <div id="sidebar-mount"></div>
 
-    <!-- Main -->
     <main class="main-content">
-      <!-- Page header -->
       <header class="page-header">
         <div>
           <div class="page-title">Dashboard</div>
           <div class="greeting" x-text="greeting"></div>
         </div>
         <a href="/interview.html" class="btn btn-primary btn-sm">
-          <i data-lucide="play" style="width:13px;height:13px;"></i>
+          <i data-lucide="play" style="width:12px;height:12px;"></i>
           Start interview
         </a>
       </header>
 
       <div class="page-body">
 
-        <!-- Skeleton loading -->
+        <!-- Skeleton -->
         <template x-if="loading">
           <div>
             <div class="stats-row mb-8">
               <template x-for="i in 4">
-                <div class="stat-card"><div class="skeleton" style="height:26px;width:60px;margin-bottom:8px;"></div><div class="skeleton" style="height:12px;width:80px;"></div></div>
+                <div class="stat-card">
+                  <div class="skeleton" style="height:32px;width:56px;margin-bottom:8px;"></div>
+                  <div class="skeleton" style="height:10px;width:80px;"></div>
+                </div>
               </template>
             </div>
-            <div class="skeleton" style="height:280px;border-radius:12px;"></div>
+            <div class="skeleton" style="height:260px;border-radius:10px;"></div>
           </div>
         </template>
 
         <!-- Content -->
         <template x-if="!loading">
           <div>
-            <!-- Stats row -->
+            <!-- Stats -->
             <div class="stats-row">
               <div class="stat-card">
-                <div class="stat-value" :style="`color: var(--color-primary)`" x-text="profile?.total_memories ?? 0"></div>
-                <div class="stat-label">Total Memories</div>
+                <div class="stat-value" style="color:var(--color-primary)" x-text="profile?.total_memories ?? 0"></div>
+                <div class="stat-label">Memories</div>
               </div>
               <div class="stat-card">
-                <div class="stat-value" :style="`color: ${highGaps > 0 ? 'var(--color-danger)' : 'var(--color-success)'}`" x-text="highGaps"></div>
-                <div class="stat-label">High-Priority Gaps</div>
+                <div class="stat-value" :style="`color:${highGaps>0?'var(--color-danger)':'var(--color-success)'}`" x-text="highGaps"></div>
+                <div class="stat-label">Priority Gaps</div>
               </div>
               <div class="stat-card">
-                <div class="stat-value" :style="`color: ${Utils.scoreColor(avgScore)}`" x-text="avgScore ? avgScore + '%' : '—'"></div>
+                <div class="stat-value" :style="`color:${Utils.scoreColor(avgScore)}`" x-text="avgScore ? avgScore+'%' : '—'"></div>
                 <div class="stat-label">Avg Score (7d)</div>
               </div>
               <div class="stat-card">
-                <div class="stat-value" style="color: var(--color-accent)" x-text="sessions.length"></div>
-                <div class="stat-label">Sessions Done</div>
+                <div class="stat-value" style="color:var(--color-accent)" x-text="sessions.length"></div>
+                <div class="stat-label">Sessions</div>
               </div>
             </div>
 
-            <!-- Two-column: chart + quick actions -->
+            <!-- Chart + Quick actions -->
             <div class="grid-2-1 mb-8">
-              <!-- Memory coverage chart -->
               <div class="card">
                 <div class="flex items-center justify-between mb-6">
                   <span class="font-semibold">Memory Coverage</span>
@@ -149,14 +140,13 @@
                   <canvas id="coverageChart"></canvas>
                 </div>
                 <div class="chart-legend">
-                  <div class="legend-item"><div class="legend-dot" style="background:var(--color-success)"></div> Covered</div>
-                  <div class="legend-item"><div class="legend-dot" style="background:var(--color-warning)"></div> Partial</div>
-                  <div class="legend-item"><div class="legend-dot" style="background:var(--color-danger)"></div> Gap</div>
+                  <div class="legend-item"><div class="legend-dot" style="background:var(--color-success)"></div>Covered</div>
+                  <div class="legend-item"><div class="legend-dot" style="background:var(--color-warning)"></div>Partial</div>
+                  <div class="legend-item"><div class="legend-dot" style="background:var(--color-danger)"></div>Gap</div>
                 </div>
               </div>
 
-              <!-- Quick actions -->
-              <div class="card" style="padding: var(--space-5);">
+              <div class="card" style="padding:var(--space-5);">
                 <div class="font-semibold mb-4">Quick Actions</div>
                 <div class="quick-actions">
                   <a href="/interview.html?type=behavioral" class="quick-action-btn">
@@ -184,16 +174,15 @@
               </div>
             </div>
 
-            <!-- Recent sessions + Top memories -->
+            <!-- Sessions + Top memories -->
             <div class="grid-cols-2">
-              <!-- Recent sessions -->
               <div class="card">
                 <div class="flex items-center justify-between mb-4">
                   <span class="font-semibold">Recent Sessions</span>
                   <a href="/history.html" class="text-sm text-brand">View all →</a>
                 </div>
                 <template x-if="recentSessions.length === 0">
-                  <div class="empty-state" style="padding: var(--space-8) 0;">
+                  <div class="empty-state" style="padding:var(--space-8) 0;">
                     <i data-lucide="clipboard-list" class="empty-state-icon"></i>
                     <p class="text-sm text-secondary">No sessions yet</p>
                     <a href="/interview.html" class="btn btn-primary btn-sm mt-4">Start your first →</a>
@@ -204,24 +193,23 @@
                     <span class="badge" :class="Utils.statusBadgeClass(s.status)" x-text="Utils.sessionTypeLabel(s.session_type)"></span>
                     <div class="session-score-bar">
                       <div class="progress">
-                        <div class="progress-fill" :class="Utils.scoreProgressClass(s.overall_score)" :style="`width: ${s.overall_score || 0}%`"></div>
+                        <div class="progress-fill" :class="Utils.scoreProgressClass(s.overall_score)" :style="`width:${s.overall_score||0}%`"></div>
                       </div>
                     </div>
-                    <span class="font-mono text-xs" :style="`color: ${Utils.scoreColor(s.overall_score)}`" x-text="s.overall_score ? Math.round(s.overall_score) + '%' : '—'"></span>
+                    <span class="font-mono text-xs" :style="`color:${Utils.scoreColor(s.overall_score)}`" x-text="s.overall_score ? Math.round(s.overall_score)+'%' : '—'"></span>
                     <span class="text-xs text-tertiary" x-text="Utils.timeAgo(s.started_at)"></span>
                     <a :href="`/report.html?id=${s.id}`" class="btn btn-ghost btn-sm">View →</a>
                   </div>
                 </template>
               </div>
 
-              <!-- Top memories -->
               <div class="card">
                 <div class="flex items-center justify-between mb-4">
                   <span class="font-semibold">Most Used Memories</span>
                   <a href="/memory.html" class="text-sm text-brand">Browse →</a>
                 </div>
                 <template x-if="topMemories.length === 0">
-                  <div class="empty-state" style="padding: var(--space-8) 0;">
+                  <div class="empty-state" style="padding:var(--space-8) 0;">
                     <i data-lucide="brain" class="empty-state-icon"></i>
                     <p class="text-sm text-secondary">No memories yet</p>
                     <a href="/documents.html" class="btn btn-primary btn-sm mt-4">Upload documents →</a>
@@ -234,7 +222,7 @@
                       <span class="badge badge-neutral" x-text="Utils.sourceLabel(m.source)"></span>
                     </div>
                     <p class="content-preview" x-text="m.content"></p>
-                    <div class="access-count" x-text="`Used ${m.access_count} time${m.access_count !== 1 ? 's' : ''}`"></div>
+                    <div class="access-count" x-text="`Used ${m.access_count} time${m.access_count!==1?'s':''}`"></div>
                   </div>
                 </template>
               </div>
@@ -246,12 +234,9 @@
     </main>
   </div>
 
-  <!-- Bottom nav (mobile) -->
   <div id="bottom-nav-mount"></div>
-
 </div>
 
-<!-- Toast container -->
 <div id="toast-container" class="toast-container"></div>
 
 <script>
@@ -265,86 +250,62 @@
 
       get greeting() {
         const h = new Date().getHours();
-        const time = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-        return `${time}, ${this.userDisplayName}`;
+        const t = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+        return `Good ${t}, ${this.userDisplayName}`;
       },
-      get highGaps() {
-        return this.gaps.filter(g => g.priority === 'high').length;
-      },
+      get highGaps() { return this.gaps.filter(g => g.priority === 'high').length; },
       get avgScore() {
-        const recent = this.sessions.filter(s => {
-          if (!s.started_at || !s.overall_score) return false;
-          return (Date.now() - new Date(s.started_at)) < 7 * 86400000;
-        });
-        if (!recent.length) return 0;
-        return Math.round(recent.reduce((a, s) => a + s.overall_score, 0) / recent.length);
+        const r = this.sessions.filter(s => s.started_at && s.overall_score && (Date.now() - new Date(s.started_at)) < 7*86400000);
+        if (!r.length) return 0;
+        return Math.round(r.reduce((a,s) => a + s.overall_score, 0) / r.length);
       },
-      get recentSessions() {
-        return this.sessions.slice(0, 3);
-      },
+      get recentSessions() { return this.sessions.slice(0, 3); },
       get topMemories() {
         const all = Object.values(this.profile?.memories_by_category || {}).flat();
-        return all.sort((a, b) => (b.access_count || 0) - (a.access_count || 0)).slice(0, 3);
+        return all.sort((a,b) => (b.access_count||0)-(a.access_count||0)).slice(0,3);
       },
 
       async init() {
         await this._init();
         try {
           const [profileData, gapsData, sessionsData] = await Promise.all([
-            API.getProfile(),
-            API.getGaps(),
-            API.getSessions(),
+            API.getProfile(), API.getGaps(), API.getSessions(),
           ]);
-          this.profile = profileData;
-          this.gaps = gapsData.gaps || [];
+          this.profile  = profileData;
+          this.gaps     = gapsData.gaps || [];
           this.sessions = sessionsData;
         } catch (err) {
           this.handleError(err, 'Failed to load dashboard');
         } finally {
           this.loading = false;
-          this.$nextTick(() => {
-            lucide.createIcons();
-            this.renderChart();
-          });
+          this.$nextTick(() => { lucide.createIcons(); this.renderChart(); });
         }
       },
 
       renderChart() {
         const canvas = document.getElementById('coverageChart');
         if (!canvas || !this.gaps) return;
-
-        const categories = Object.keys(this.profile?.memories_by_category || {});
-        const covered  = categories.filter(c => !this.gaps.find(g => g.category === c)).length;
-        const partial  = this.gaps.filter(g => g.have > 0).length;
-        const missing  = this.gaps.filter(g => g.have === 0).length;
-
+        const cats    = Object.keys(this.profile?.memories_by_category || {});
+        const covered = cats.filter(c => !this.gaps.find(g => g.category === c)).length;
+        const partial = this.gaps.filter(g => g.have > 0).length;
+        const missing = this.gaps.filter(g => g.have === 0).length;
         new Chart(canvas, {
           type: 'doughnut',
           data: {
             labels: ['Covered', 'Partial', 'Gap'],
             datasets: [{
               data: [covered, partial, missing],
-              backgroundColor: [
-                'rgba(16,185,129,0.8)',
-                'rgba(245,158,11,0.8)',
-                'rgba(244,63,94,0.8)',
-              ],
-              borderColor: '#0f0f0f',
-              borderWidth: 2,
+              backgroundColor: ['rgba(74,158,114,0.8)','rgba(200,133,31,0.8)','rgba(184,64,64,0.8)'],
+              borderColor: 'var(--color-surface)', borderWidth: 2,
             }]
           },
           options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '70%',
+            responsive: true, maintainAspectRatio: false, cutout: '72%',
             plugins: {
               legend: { display: false },
               tooltip: {
-                backgroundColor: '#161616',
-                borderColor: '#2a2a2a',
-                borderWidth: 1,
-                titleColor: '#f4f4f5',
-                bodyColor: '#a1a1aa',
+                backgroundColor: '#1a1810', borderColor: '#342c1e', borderWidth: 1,
+                titleColor: '#ede5cf', bodyColor: '#9a8a6a',
               }
             }
           }
@@ -354,7 +315,6 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    // Inject sidebar + bottom nav after auth resolves
     Auth.getSession().then(session => {
       if (!session) return;
       const email = session.user.email || '';
@@ -364,6 +324,5 @@
     });
   });
 </script>
-
 </body>
 </html>

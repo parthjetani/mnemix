@@ -5,142 +5,302 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sign in — MNEMIX</title>
 
-  <!-- Supabase config — replace with your project values -->
   <meta name="supabase-url" content="https://fodnuozowtdesptqbray.supabase.co">
   <meta name="supabase-anon-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvZG51b3pvd3RkZXNwdHFicmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDIxMzgsImV4cCI6MjA5NDY3ODEzOH0.O1YmQOEqWre1wAjYh3UKa1ANTmsOWAMl98JAsB129u4">
 
-  <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-
-  <!-- Styles -->
   <link rel="stylesheet" href="/css/design-system.css">
   <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="/css/layout.css">
 
-  <!-- CDN scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
-
-  <!-- App scripts -->
   <script src="/js/auth.js"></script>
   <script src="/js/api.js"></script>
   <script src="/js/utils.js"></script>
 
   <style>
-    .login-bg {
-      background-image:
-        radial-gradient(circle at 20% 50%, rgba(99,102,241,0.06) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, rgba(129,140,248,0.04) 0%, transparent 40%);
+    body {
+      background: var(--color-bg);
+      min-height: 100vh;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Ruled lines background */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none;
+      background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0px, transparent 31px,
+        rgba(200,133,31,0.03) 31px, rgba(200,133,31,0.03) 32px
+      );
+    }
+
+    /* Left panel — brand */
+    .login-brand {
+      width: 42%; flex-shrink: 0;
+      display: flex; flex-direction: column;
+      justify-content: space-between;
+      padding: 40px 48px;
+      border-right: 1px solid var(--color-border);
+      position: relative; z-index: 1;
+    }
+    .brand-glow {
+      position: absolute; bottom: -100px; right: -100px;
+      width: 600px; height: 600px; pointer-events: none;
+      background: radial-gradient(circle, rgba(200,133,31,0.1) 0%, transparent 60%);
+    }
+    .brand-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-family: var(--font-mono); font-size: 15px; font-weight: 600;
+      letter-spacing: 0.08em; color: var(--text-primary);
+    }
+    .brand-logo-mark {
+      width: 30px; height: 30px;
+      background: var(--color-primary);
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display);
+      font-size: 16px; font-weight: 600; font-style: italic;
+      color: #0a0906;
+    }
+    .brand-quote {
+      font-family: var(--font-display);
+      font-size: clamp(28px, 3.5vw, 44px);
+      font-weight: 600; font-style: italic;
+      line-height: 1.2; letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+    .brand-quote span { color: var(--color-accent); }
+    .brand-caption {
+      font-size: 13px; color: var(--text-secondary);
+      margin-top: 16px; line-height: 1.65; max-width: 340px;
+    }
+    .brand-stats {
+      display: flex; gap: 32px;
+    }
+    .brand-stat-val {
+      font-family: var(--font-display);
+      font-size: 28px; font-weight: 600; font-style: italic;
+      color: var(--color-primary); line-height: 1;
+    }
+    .brand-stat-label {
+      font-family: var(--font-mono);
+      font-size: 11px; color: var(--text-tertiary);
+      text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px;
+    }
+
+    /* Right panel — form */
+    .login-form-wrap {
+      flex: 1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 40px 48px;
+      position: relative; z-index: 1;
     }
     .login-card {
-      background: var(--color-surface);
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius-xl);
-      padding: var(--space-10) var(--space-8);
+      width: 100%; max-width: 380px;
     }
+    .login-heading {
+      font-family: var(--font-display);
+      font-size: 36px; font-weight: 600; font-style: italic;
+      letter-spacing: -0.02em; color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+    .login-sub {
+      font-size: 14px; color: var(--text-secondary);
+      margin-bottom: 36px; line-height: 1.55;
+    }
+
+    /* Custom input styling for this page */
+    .login-input-wrap { margin-bottom: 20px; }
+    .login-label {
+      display: block;
+      font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+      color: var(--text-tertiary); letter-spacing: 0.1em;
+      text-transform: uppercase; margin-bottom: 8px;
+    }
+    .login-input {
+      width: 100%;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-2);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 15px; font-family: var(--font-body);
+      padding: 12px 16px;
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    }
+    .login-input:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(200,133,31,0.12);
+    }
+    .login-input::placeholder { color: var(--text-tertiary); }
+
+    .login-btn {
+      width: 100%; padding: 13px;
+      border-radius: var(--radius-md);
+      background: var(--color-primary); color: #0a0906;
+      font-size: 14px; font-weight: 700; border: none;
+      cursor: pointer; transition: background var(--transition-fast);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .login-btn:hover   { background: var(--color-accent); }
+    .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .login-divider {
+      display: flex; align-items: center; gap: 16px;
+      margin: 24px 0; color: var(--text-tertiary); font-size: 12px;
+    }
+    .login-divider::before, .login-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--color-border);
+    }
+
+    .login-btn-ghost {
+      width: 100%; padding: 11px;
+      border-radius: var(--radius-md);
+      background: transparent; color: var(--text-secondary);
+      font-size: 13px; font-weight: 500; border: 1px solid var(--color-border-2);
+      cursor: pointer; transition: all var(--transition-fast);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .login-btn-ghost:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
+    .login-terms {
+      font-size: 11px; color: var(--text-tertiary); text-align: center;
+      margin-top: 24px; line-height: 1.6;
+    }
+    .login-terms a { color: var(--color-primary); }
+
+    /* Sent state */
     .sent-icon {
-      width: 48px;
-      height: 48px;
-      background: rgba(16,185,129,0.12);
+      width: 52px; height: 52px;
       border-radius: var(--radius-full);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto var(--space-4);
+      background: rgba(74,158,114,0.12);
+      border: 1px solid rgba(74,158,114,0.2);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px;
       color: var(--color-success);
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      body { flex-direction: column; }
+      .login-brand { width: 100%; padding: 28px 24px; border-right: none; border-bottom: 1px solid var(--color-border); }
+      .brand-quote { font-size: 28px; }
+      .brand-stats { display: none; }
+      .login-form-wrap { padding: 36px 24px; justify-content: flex-start; }
     }
   </style>
 </head>
-<body class="login-bg">
+<body>
 
-<div class="auth-page" x-data="loginPage()">
-
-  <!-- Default: sign-in form -->
-  <div class="auth-card login-card" x-show="!sent">
-    <!-- Logo -->
-    <div class="auth-logo">
-      <div class="sidebar-logo-mark" style="width:36px;height:36px;font-size:16px;">M</div>
-      <span class="sidebar-logo-text text-xl">MNEMIX</span>
+<!-- Left: Brand panel -->
+<div class="login-brand">
+  <div class="brand-glow"></div>
+  <a href="/" class="brand-logo" style="text-decoration:none;">
+    <div class="brand-logo-mark">M</div>
+    MNEMIX
+  </a>
+  <div>
+    <div class="brand-quote">
+      Your interviews.<br>In your <span>voice.</span>
     </div>
-
-    <h1 class="text-xl font-semibold text-center mb-2">Sign in to MNEMIX</h1>
-    <p class="text-sm text-secondary text-center mb-8">No password needed. We'll email you a sign-in link.</p>
-
-    <!-- Email form -->
-    <form @submit.prevent="sendLink">
-      <div class="input-group mb-4">
-        <label class="input-label" for="email">Email address</label>
-        <input
-          id="email"
-          type="email"
-          class="input"
-          placeholder="you@example.com"
-          x-model="email"
-          :disabled="loading"
-          autocomplete="email"
-          required
-          autofocus
-        >
-      </div>
-
-      <button
-        type="submit"
-        class="btn btn-primary w-full btn-lg"
-        :disabled="loading || !email.trim()"
-      >
-        <span x-show="loading" class="spinner" style="width:16px;height:16px;border-width:2px;"></span>
-        <span x-text="loading ? 'Sending…' : 'Send magic link →'"></span>
-      </button>
-    </form>
-
-    <div class="divider-text mt-6 mb-6">or</div>
-
-    <!-- Dev bypass — localhost only -->
-    <button class="btn btn-secondary w-full" @click="Auth.devLogin()" style="border-style:dashed;">
-      <i data-lucide="terminal" style="width:15px;height:15px;"></i>
-      Continue as dev (localhost only)
-    </button>
-
-    <!-- Google OAuth (future) -->
-    <button class="btn btn-ghost w-full mt-2" @click="googleLogin" disabled style="opacity:0.35;cursor:not-allowed;">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-      </svg>
-      Continue with Google
-      <span class="badge badge-neutral ml-auto">Soon</span>
-    </button>
-
-    <p class="text-xs text-tertiary text-center mt-6">
-      By signing in you agree to our
-      <a href="#" class="text-brand">Terms</a> and <a href="#" class="text-brand">Privacy Policy</a>.
+    <p class="brand-caption">
+      Stop rehearsing answers someone else wrote. MNEMIX extracts your real stories from your AI conversation history and turns them into interview gold.
     </p>
   </div>
-
-  <!-- Sent: check inbox state -->
-  <div class="auth-card login-card" x-show="sent" x-cloak>
-    <div class="sent-icon">
-      <i data-lucide="mail-check" style="width:24px;height:24px;"></i>
+  <div class="brand-stats">
+    <div>
+      <div class="brand-stat-val">2yr</div>
+      <div class="brand-stat-label">History indexed</div>
     </div>
-    <h1 class="text-xl font-semibold text-center mb-2">Check your inbox</h1>
-    <p class="text-sm text-secondary text-center mb-2">
-      We sent a magic link to
-    </p>
-    <p class="text-sm font-medium text-center font-mono mb-6" x-text="email"></p>
-    <p class="text-xs text-tertiary text-center mb-8">
-      Click the link in the email to sign in. It expires in 10 minutes.
-    </p>
-    <button class="btn btn-ghost w-full" @click="sent = false">
-      ← Use a different email
-    </button>
+    <div>
+      <div class="brand-stat-val">8</div>
+      <div class="brand-stat-label">Questions / session</div>
+    </div>
+    <div>
+      <div class="brand-stat-val">Free</div>
+      <div class="brand-stat-label">To start</div>
+    </div>
   </div>
-
 </div>
 
-<!-- Toast container -->
+<!-- Right: Form panel -->
+<div class="login-form-wrap">
+
+  <div class="login-card" x-data="loginPage()">
+
+    <!-- Sign-in form -->
+    <div x-show="!sent">
+      <h1 class="login-heading">Sign in.</h1>
+      <p class="login-sub">No password needed — we'll send a magic link to your inbox.</p>
+
+      <form @submit.prevent="sendLink">
+        <div class="login-input-wrap">
+          <label class="login-label" for="email">Email address</label>
+          <input
+            id="email"
+            type="email"
+            class="login-input"
+            placeholder="you@example.com"
+            x-model="email"
+            :disabled="loading"
+            autocomplete="email"
+            required autofocus
+          >
+        </div>
+
+        <button type="submit" class="login-btn" :disabled="loading || !email.trim()">
+          <span x-show="loading" class="spinner" style="width:15px;height:15px;border-width:2px;border-top-color:#0a0906;border-color:rgba(10,9,6,0.3);"></span>
+          <span x-text="loading ? 'Sending…' : 'Send magic link →'"></span>
+        </button>
+      </form>
+
+      <div class="login-divider">or</div>
+
+      <button class="login-btn-ghost" @click="Auth.devLogin()" style="border-style:dashed;margin-bottom:8px;">
+        <i data-lucide="terminal" style="width:14px;height:14px;"></i>
+        Continue as dev (localhost only)
+      </button>
+
+      <button class="login-btn-ghost" @click="googleLogin" disabled style="opacity:0.35;cursor:not-allowed;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        Continue with Google
+        <span style="font-size:10px;font-family:var(--font-mono);color:var(--text-tertiary);margin-left:auto;">Soon</span>
+      </button>
+
+      <p class="login-terms">
+        By signing in you agree to our
+        <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.
+      </p>
+    </div>
+
+    <!-- Sent state -->
+    <div x-show="sent" x-cloak style="text-align:center;">
+      <div class="sent-icon">
+        <i data-lucide="mail-check" style="width:24px;height:24px;"></i>
+      </div>
+      <h2 class="login-heading" style="font-size:28px;">Check your inbox.</h2>
+      <p class="login-sub">We sent a magic link to</p>
+      <p style="font-family:var(--font-mono);font-size:14px;font-weight:500;color:var(--text-primary);margin-bottom:24px;" x-text="email"></p>
+      <p style="font-size:13px;color:var(--text-tertiary);margin-bottom:32px;line-height:1.6;">
+        Click the link in the email to sign in. It expires in 10 minutes.
+      </p>
+      <button class="login-btn-ghost" @click="sent = false">← Use a different email</button>
+    </div>
+
+  </div>
+</div>
+
 <div id="toast-container" class="toast-container"></div>
 
 <script>
@@ -163,20 +323,15 @@
         }
       },
 
-      googleLogin() {
-        // Placeholder — OAuth to be added in v0.2
-      }
+      googleLogin() {}
     };
   }
 
-  // If already logged in, skip to dashboard
   (async () => {
     const session = await Auth.getSession();
     if (session) window.location.href = '/dashboard.html';
   })();
-</script>
 
-<script>
   document.addEventListener('DOMContentLoaded', () => lucide.createIcons());
 </script>
 

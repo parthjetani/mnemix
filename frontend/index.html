@@ -3,445 +3,602 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MNEMIX — Memory-Powered Interview Coaching</title>
-  <meta name="description" content="Stop practicing with generic AI answers. MNEMIX extracts your real experiences from 2 years of AI conversations and builds interview answers that are authentically yours.">
-
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <title>MNEMIX — Your interview answers, in your voice</title>
+  <meta name="description" content="Stop rehearsing generic answers. MNEMIX extracts your real experiences from 2 years of AI conversations and builds interview answers that are authentically yours.">
   <link rel="stylesheet" href="/css/design-system.css">
 
   <style>
-    /* Landing-specific overrides */
-    body { background: #080808; }
+    /* ── Page base ─────────────────────────────────── */
+    body { background: #0a0906; overflow-x: hidden; }
 
-    /* Navbar */
+    /* Ruled-line texture */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 31px,
+        rgba(200,133,31,0.035) 31px,
+        rgba(200,133,31,0.035) 32px
+      );
+    }
+
+    /* ── Navbar ────────────────────────────────────── */
     .navbar {
-      position: sticky; top: 0; z-index: 100;
+      position: sticky; top: 0; z-index: 200;
       display: flex; align-items: center; justify-content: space-between;
-      padding: 0 var(--space-8); height: 60px;
-      background: rgba(8,8,8,0.9); backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--color-border);
+      padding: 0 48px; height: 56px;
+      background: rgba(10,9,6,0.92);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(200,133,31,0.12);
     }
-    .nav-logo { display: flex; align-items: center; gap: 10px; }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-family: var(--font-mono); font-size: 14px; font-weight: 600;
+      letter-spacing: 0.08em; color: var(--text-primary);
+      text-decoration: none;
+    }
     .nav-logo-mark {
-      width: 28px; height: 28px; background: var(--color-primary);
-      border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center;
-      font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: white;
+      width: 28px; height: 28px;
+      background: var(--color-primary);
+      border-radius: var(--radius-md);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display);
+      font-size: 15px; font-weight: 600; font-style: italic;
+      color: #0a0906;
     }
-    .nav-logo-text { font-family: var(--font-mono); font-size: 14px; font-weight: 600; letter-spacing: 0.05em; }
-    .nav-actions { display: flex; align-items: center; gap: var(--space-3); }
-    .btn-nav { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; border-radius: var(--radius-md); font-size: 13px; font-weight: 500; transition: all 150ms ease-out; cursor: pointer; }
-    .btn-nav-ghost { background: transparent; border: 1px solid transparent; color: var(--text-secondary); text-decoration: none; }
-    .btn-nav-ghost:hover { border-color: var(--color-border-2); color: var(--text-primary); }
-    .btn-nav-primary { background: var(--color-primary); color: white; border: none; text-decoration: none; }
-    .btn-nav-primary:hover { background: var(--color-accent); }
+    .nav-actions { display: flex; align-items: center; gap: 12px; }
+    .nav-link {
+      font-size: 13px; font-weight: 500; color: var(--text-secondary);
+      text-decoration: none; padding: 6px 12px;
+      border-radius: var(--radius-md);
+      transition: color var(--transition-fast);
+    }
+    .nav-link:hover { color: var(--text-primary); }
+    .nav-cta {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 18px; border-radius: var(--radius-md);
+      background: var(--color-primary);
+      color: #0a0906; font-size: 13px; font-weight: 600;
+      text-decoration: none;
+      transition: background var(--transition-fast);
+    }
+    .nav-cta:hover { background: var(--color-accent); }
 
-    /* Hero */
+    /* ── Hero ──────────────────────────────────────── */
     .hero {
-      text-align: center; padding: 100px var(--space-6) 80px;
-      background-image:
-        radial-gradient(circle at 50% 0%, rgba(99,102,241,0.12) 0%, transparent 60%);
+      position: relative; z-index: 1;
+      padding: 100px 48px 90px;
+      text-align: center; overflow: hidden;
+    }
+    .hero-glow {
+      position: absolute; bottom: -80px; left: 50%; transform: translateX(-50%);
+      width: 900px; height: 500px; pointer-events: none;
+      background: radial-gradient(ellipse at center, rgba(200,133,31,0.18) 0%, rgba(200,133,31,0.06) 40%, transparent 70%);
+      filter: blur(1px);
+    }
+    .hero-glow-2 {
+      position: absolute; bottom: -120px; left: 50%; transform: translateX(-50%);
+      width: 500px; height: 300px; pointer-events: none;
+      background: radial-gradient(ellipse at center, rgba(232,163,50,0.1) 0%, transparent 60%);
+    }
+    .hero-label {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: var(--font-mono); font-size: 11px;
+      color: var(--color-primary); letter-spacing: 0.12em; text-transform: uppercase;
+      border: 1px solid rgba(200,133,31,0.25); border-radius: var(--radius-full);
+      padding: 5px 14px; margin-bottom: 36px;
+      opacity: 0; animation: fadeUp 0.6s ease-out 0.1s forwards;
+    }
+    .hero-label::before { content: '◆'; font-size: 8px; }
+
+    .hero-heading {
+      font-family: var(--font-display);
+      font-size: clamp(52px, 9vw, 96px);
+      font-weight: 600;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      margin-bottom: 28px;
+      opacity: 0; animation: fadeUp 0.7s ease-out 0.2s forwards;
+    }
+    .hero-heading em {
+      font-style: italic;
+      color: var(--color-accent);
+      font-weight: 500;
+    }
+
+    .hero-sub {
+      font-size: 17px; line-height: 1.7;
+      color: var(--text-secondary);
+      max-width: 540px; margin: 0 auto 40px;
+      opacity: 0; animation: fadeUp 0.7s ease-out 0.35s forwards;
+    }
+
+    .hero-ctas {
+      display: flex; align-items: center; justify-content: center;
+      gap: 12px; flex-wrap: wrap; margin-bottom: 20px;
+      opacity: 0; animation: fadeUp 0.7s ease-out 0.45s forwards;
+    }
+    .hero-cta-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 13px 30px; border-radius: var(--radius-md);
+      background: var(--color-primary); color: #0a0906;
+      font-size: 14px; font-weight: 700;
+      text-decoration: none; letter-spacing: 0.01em;
+      transition: background var(--transition-fast), transform 120ms ease-out;
       position: relative; overflow: hidden;
     }
-    .hero::before {
+    .hero-cta-primary::after {
       content: '';
       position: absolute; inset: 0;
-      background-image: radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px);
-      background-size: 32px 32px;
-      pointer-events: none;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%);
+      transform: translateX(-100%);
+      animation: shimmerBtn 2.5s ease-in-out 1.2s infinite;
     }
-    .hero-eyebrow {
+    @keyframes shimmerBtn {
+      from { transform: translateX(-100%); }
+      to   { transform: translateX(100%); }
+    }
+    .hero-cta-primary:hover { background: var(--color-accent); transform: translateY(-1px); }
+    .hero-cta-secondary {
       display: inline-flex; align-items: center; gap: 8px;
-      padding: 4px 12px; border: 1px solid var(--color-border-2);
-      border-radius: var(--radius-full); font-size: 12px; font-family: var(--font-mono);
-      color: var(--color-accent); margin-bottom: var(--space-6);
+      padding: 12px 24px; border-radius: var(--radius-md);
+      background: transparent; color: var(--text-secondary);
+      border: 1px solid var(--color-border-2);
+      font-size: 14px; font-weight: 500;
+      text-decoration: none;
+      transition: all var(--transition-fast);
     }
-    .hero-heading {
-      font-size: clamp(40px, 8vw, 72px); font-weight: 600; line-height: 1.1;
-      letter-spacing: -0.02em; margin-bottom: var(--space-6);
-    }
-    .hero-gradient {
-      background: linear-gradient(135deg, var(--color-accent), #c4b5fd);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .hero-sub {
-      font-size: 18px; color: var(--text-secondary); max-width: 560px; margin: 0 auto var(--space-8);
-      line-height: 1.6;
-    }
-    .hero-ctas { display: flex; align-items: center; justify-content: center; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-6); }
-    .hero-proof { font-size: 12px; color: var(--text-tertiary); font-family: var(--font-mono); }
+    .hero-cta-secondary:hover { border-color: var(--color-primary); color: var(--color-primary); }
 
-    /* Section container */
-    .section { padding: 80px var(--space-8); max-width: 1100px; margin: 0 auto; }
+    .hero-proof {
+      font-family: var(--font-mono); font-size: 11px;
+      color: var(--text-tertiary); letter-spacing: 0.06em;
+      opacity: 0; animation: fadeUp 0.6s ease-out 0.6s forwards;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Ruling dividers ─────────────────────────── */
+    .rule { width: 100%; height: 1px; background: var(--color-border); }
+
+    /* ── Sections ────────────────────────────────── */
+    .section { position: relative; z-index: 1; padding: 88px 48px; max-width: 1160px; margin: 0 auto; }
+    .section-full { position: relative; z-index: 1; }
+    .section-inner { max-width: 1160px; margin: 0 auto; padding: 88px 48px; }
+
+    .section-label {
+      font-family: var(--font-mono); font-size: 11px;
+      color: var(--color-primary); letter-spacing: 0.12em;
+      text-transform: uppercase; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .section-label::before { content: ''; width: 32px; height: 1px; background: var(--color-primary); }
     .section-heading {
-      font-size: 32px; font-weight: 600; letter-spacing: -0.01em;
-      margin-bottom: var(--space-4); text-align: center;
+      font-family: var(--font-display);
+      font-size: clamp(32px, 4vw, 48px);
+      font-weight: 600; line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
     }
-    .section-subheading { font-size: 16px; color: var(--text-secondary); text-align: center; margin-bottom: var(--space-12); }
+    .section-heading em { font-style: italic; color: var(--color-accent); }
+    .section-sub {
+      font-size: 15px; color: var(--text-secondary); line-height: 1.65;
+      max-width: 520px;
+    }
 
-    /* Problem/Solution */
-    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); }
-    .compare-card {
-      border-radius: var(--radius-xl); padding: var(--space-8);
-      border: 1px solid;
+    /* ── Comparison ──────────────────────────────── */
+    .compare-wrap {
+      background: var(--color-surface);
+      border-top: 1px solid var(--color-border);
+      border-bottom: 1px solid var(--color-border);
     }
-    .compare-bad { background: rgba(244,63,94,0.04); border-color: rgba(244,63,94,0.2); }
-    .compare-good { background: rgba(16,185,129,0.04); border-color: rgba(16,185,129,0.2); }
-    .compare-label {
-      font-size: 11px; font-family: var(--font-mono); font-weight: 600;
-      text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: var(--space-4);
+    .compare-inner {
+      max-width: 1160px; margin: 0 auto;
+      display: grid; grid-template-columns: 1fr 1fr;
     }
-    .compare-bad .compare-label { color: var(--color-danger); }
-    .compare-good .compare-label { color: var(--color-success); }
-    .compare-quote {
-      font-size: 14px; line-height: 1.8; color: var(--text-secondary);
-      font-style: italic; border-left: 3px solid; padding-left: var(--space-4);
+    .compare-col {
+      padding: 56px 48px;
     }
-    .compare-bad .compare-quote { border-color: var(--color-danger); }
-    .compare-good .compare-quote { border-color: var(--color-success); color: var(--text-primary); }
+    .compare-col + .compare-col {
+      border-left: 1px solid var(--color-border-2);
+    }
+    .compare-tag {
+      font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.12em;
+      margin-bottom: 20px; display: flex; align-items: center; gap: 8px;
+    }
+    .compare-tag-bad  { color: var(--color-danger); }
+    .compare-tag-good { color: var(--color-success); }
+    .compare-tag-bad::before  { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--color-danger); flex-shrink: 0; }
+    .compare-tag-good::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--color-success); flex-shrink: 0; }
 
-    /* How it works */
-    .steps-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-8); }
-    .step-card { text-align: center; }
+    .compare-question {
+      font-size: 13px; font-style: italic; color: var(--text-tertiary);
+      margin-bottom: 20px; font-family: var(--font-body);
+    }
+    .compare-answer {
+      font-size: 15px; line-height: 1.8;
+      color: var(--text-secondary); padding-left: 20px;
+      border-left: 2px solid var(--color-border-2);
+      margin-bottom: 20px;
+    }
+    .compare-col:last-child .compare-answer {
+      color: var(--text-primary);
+      border-left-color: var(--color-primary);
+    }
+    .compare-verdict {
+      font-family: var(--font-mono); font-size: 11px;
+      letter-spacing: 0.04em;
+    }
+    .compare-verdict-bad  { color: var(--color-danger); }
+    .compare-verdict-good { color: var(--color-success); }
+
+    /* ── How it works ────────────────────────────── */
+    .steps-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 0; margin-top: 64px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+    }
+    .step-card {
+      padding: 40px 36px;
+      border-right: 1px solid var(--color-border);
+      position: relative;
+    }
+    .step-card:last-child { border-right: none; }
     .step-num {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 48px; height: 48px; border-radius: var(--radius-md);
-      background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.3);
-      font-family: var(--font-mono); font-size: 18px; font-weight: 600;
-      color: var(--color-accent); margin-bottom: var(--space-5);
+      font-family: var(--font-display);
+      font-size: 72px; font-weight: 600; font-style: italic;
+      line-height: 1; color: rgba(200,133,31,0.15);
+      margin-bottom: 20px;
+      letter-spacing: -0.03em;
     }
-    .step-title { font-size: 16px; font-weight: 600; margin-bottom: var(--space-2); }
-    .step-desc { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+    .step-title {
+      font-size: 16px; font-weight: 600; margin-bottom: 10px;
+      color: var(--text-primary);
+    }
+    .step-desc { font-size: 14px; color: var(--text-secondary); line-height: 1.65; }
 
-    /* Feature grid */
-    .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
+    /* ── Feature grid ────────────────────────────── */
+    .feature-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-4); margin-top: 56px;
+    }
     .feature-card {
-      background: var(--color-surface); border: 1px solid var(--color-border);
-      border-radius: var(--radius-lg); padding: var(--space-6);
-      transition: border-color 150ms ease-out;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg); padding: 28px 28px;
+      transition: border-color var(--transition-fast), transform var(--transition-fast);
     }
-    .feature-card:hover { border-color: var(--color-border-2); }
-    .feature-icon {
-      width: 36px; height: 36px; border-radius: var(--radius-md);
-      background: rgba(99,102,241,0.12);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px; margin-bottom: var(--space-4);
+    .feature-card:hover {
+      border-color: rgba(200,133,31,0.3);
+      transform: translateY(-2px);
     }
-    .feature-title { font-size: 15px; font-weight: 600; margin-bottom: var(--space-2); }
-    .feature-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+    .feature-num {
+      font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+      color: var(--color-primary); letter-spacing: 0.08em;
+      margin-bottom: 16px; display: block;
+    }
+    .feature-title { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+    .feature-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.65; }
 
-    /* Comparison table */
-    .compare-table { width: 100%; border-collapse: collapse; border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--color-border); }
-    .compare-table th { padding: 14px 16px; font-size: 12px; font-weight: 600; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--color-border); text-align: left; }
-    .compare-table th:first-child { color: var(--text-tertiary); }
-    .compare-table th.highlight { color: var(--color-accent); background: rgba(99,102,241,0.06); }
-    .compare-table td { padding: 12px 16px; font-size: 13px; border-bottom: 1px solid var(--color-border); }
-    .compare-table tr:last-child td { border-bottom: none; }
-    .compare-table td.highlight { background: rgba(99,102,241,0.04); }
-    .check { color: var(--color-success); font-weight: 600; }
+    /* ── Comparison table ────────────────────────── */
+    .ctable-wrap { border-radius: var(--radius-xl); overflow: hidden; border: 1px solid var(--color-border); margin-top: 56px; }
+    .ctable { width: 100%; border-collapse: collapse; }
+    .ctable th {
+      padding: 14px 20px; font-size: 11px; font-weight: 600;
+      font-family: var(--font-mono); text-transform: uppercase;
+      letter-spacing: 0.08em; border-bottom: 1px solid var(--color-border);
+      text-align: left; background: var(--color-surface);
+    }
+    .ctable th:first-child { color: var(--text-tertiary); }
+    .ctable th.hl { color: var(--color-primary); background: rgba(200,133,31,0.05); }
+    .ctable td {
+      padding: 13px 20px; font-size: 13px;
+      border-bottom: 1px solid var(--color-border); background: var(--color-surface);
+    }
+    .ctable td.hl { background: rgba(200,133,31,0.03); }
+    .ctable tr:last-child td { border-bottom: none; }
+    .check { color: var(--color-primary); font-weight: 600; }
     .cross { color: var(--text-tertiary); }
 
-    /* Pricing */
-    .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-5); }
-    .pricing-card {
-      background: var(--color-surface); border: 1px solid var(--color-border);
-      border-radius: var(--radius-xl); padding: var(--space-8); text-align: center;
+    /* ── CTA band ────────────────────────────────── */
+    .cta-band {
+      background: var(--color-surface);
+      border-top: 1px solid var(--color-border);
     }
-    .pricing-card.featured { border-color: var(--color-primary); background: rgba(99,102,241,0.04); }
-    .pricing-badge { display: inline-block; padding: 3px 10px; background: var(--color-primary); color: white; border-radius: var(--radius-full); font-size: 11px; font-weight: 600; margin-bottom: var(--space-4); font-family: var(--font-mono); }
-    .pricing-name { font-size: 20px; font-weight: 600; margin-bottom: var(--space-2); }
-    .pricing-price { font-family: var(--font-mono); font-size: 36px; font-weight: 600; margin-bottom: var(--space-1); }
-    .pricing-period { font-size: 13px; color: var(--text-tertiary); margin-bottom: var(--space-6); }
-    .pricing-features { text-align: left; margin-bottom: var(--space-6); }
-    .pricing-feature { display: flex; gap: 8px; font-size: 13px; color: var(--text-secondary); padding: 4px 0; }
-    .pricing-feature .check { flex-shrink: 0; }
-    .btn-pricing {
-      display: block; width: 100%; padding: 10px 20px; border-radius: var(--radius-md);
-      font-size: 14px; font-weight: 500; text-align: center; transition: all 150ms ease-out;
-      cursor: pointer; text-decoration: none;
+    .cta-inner {
+      max-width: 1160px; margin: 0 auto; padding: 80px 48px;
+      text-align: center;
     }
-    .btn-pricing-outline { background: transparent; border: 1px solid var(--color-border-2); color: var(--text-primary); }
-    .btn-pricing-outline:hover { border-color: var(--color-primary); color: var(--color-accent); }
-    .btn-pricing-filled { background: var(--color-primary); border: none; color: white; }
-    .btn-pricing-filled:hover { background: var(--color-accent); }
+    .cta-heading {
+      font-family: var(--font-display);
+      font-size: clamp(36px, 5vw, 60px);
+      font-weight: 600; font-style: italic;
+      line-height: 1.1; letter-spacing: -0.02em;
+      margin-bottom: 20px;
+    }
+    .cta-heading span { color: var(--color-accent); }
+    .cta-sub { font-size: 15px; color: var(--text-secondary); margin-bottom: 36px; }
 
-    /* Footer */
+    /* ── Footer ──────────────────────────────────── */
     .footer {
       border-top: 1px solid var(--color-border);
-      padding: var(--space-8) var(--space-8);
+      padding: 28px 48px;
       display: flex; align-items: center; justify-content: space-between;
-      max-width: 1100px; margin: 0 auto;
+      position: relative; z-index: 1;
     }
-    .footer-links { display: flex; gap: var(--space-6); }
-    .footer-link { font-size: 13px; color: var(--text-tertiary); }
+    .footer-logo { display: flex; align-items: center; gap: 8px; }
+    .footer-logo-text { font-family: var(--font-mono); font-size: 13px; font-weight: 600; letter-spacing: 0.08em; }
+    .footer-copy { font-size: 12px; color: var(--text-tertiary); font-family: var(--font-mono); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-link { font-size: 12px; color: var(--text-tertiary); transition: color var(--transition-fast); }
     .footer-link:hover { color: var(--text-secondary); }
 
-    /* Responsive */
-    @media (max-width: 767px) {
-      .section { padding: 60px var(--space-4); }
-      .compare-grid { grid-template-columns: 1fr; }
-      .steps-row { grid-template-columns: 1fr; gap: var(--space-6); }
+    /* ── Responsive ──────────────────────────────── */
+    @media (max-width: 900px) {
+      .navbar { padding: 0 24px; }
+      .hero   { padding: 72px 24px 64px; }
+      .compare-inner { grid-template-columns: 1fr; }
+      .compare-col + .compare-col { border-left: none; border-top: 1px solid var(--color-border-2); }
+      .steps-grid   { grid-template-columns: 1fr; }
+      .step-card    { border-right: none; border-bottom: 1px solid var(--color-border); }
+      .step-card:last-child { border-bottom: none; }
       .feature-grid { grid-template-columns: 1fr 1fr; }
-      .pricing-grid { grid-template-columns: 1fr; }
-      .compare-table { font-size: 12px; }
-      .compare-table th, .compare-table td { padding: 8px 10px; }
-      .footer { flex-direction: column; gap: var(--space-4); text-align: center; }
-      .footer-links { flex-wrap: wrap; justify-content: center; }
+      .section, .section-inner { padding: 60px 24px; }
+      .footer { flex-direction: column; gap: 16px; text-align: center; }
+    }
+    @media (max-width: 600px) {
+      .feature-grid { grid-template-columns: 1fr; }
+      .hero-heading { font-size: 46px; }
+      .ctable th:nth-child(n+3), .ctable td:nth-child(n+3) { display: none; }
     }
   </style>
 </head>
 <body>
 
-<!-- Navbar -->
+<!-- ── Navbar ──────────────────────────────────────────────── -->
 <nav class="navbar">
-  <div class="nav-logo">
+  <a href="/" class="nav-logo">
     <div class="nav-logo-mark">M</div>
-    <span class="nav-logo-text">MNEMIX</span>
-  </div>
+    MNEMIX
+  </a>
   <div class="nav-actions">
-    <a href="/login.html" class="btn-nav btn-nav-ghost">Sign in</a>
-    <a href="/login.html" class="btn-nav btn-nav-primary">Get started free →</a>
+    <a href="#how-it-works" class="nav-link">How it works</a>
+    <a href="#features" class="nav-link">Features</a>
+    <a href="/login.html" class="nav-link">Sign in</a>
+    <a href="/login.html" class="nav-cta">Start free →</a>
   </div>
 </nav>
 
-<!-- Hero -->
+<!-- ── Hero ────────────────────────────────────────────────── -->
 <section class="hero">
-  <div class="hero-eyebrow">
-    <span>●</span> Memory-Powered Interview Coaching
-  </div>
+  <div class="hero-glow"></div>
+  <div class="hero-glow-2"></div>
+
+  <div class="hero-label">Memory-powered interview coaching</div>
+
   <h1 class="hero-heading">
-    Your interviews.<br>
-    In your <span class="hero-gradient">voice.</span>
+    Your answers.<br>
+    In your <em>voice.</em>
   </h1>
+
   <p class="hero-sub">
-    Every other tool generates generic answers from your resume. MNEMIX builds authentic answers from 2 years of your actual AI conversations, real projects, and lived experiences.
+    Every other tool generates generic answers from your resume.
+    MNEMIX builds authentic answers from two years of your actual
+    AI conversations — real projects, real decisions, real you.
   </p>
+
   <div class="hero-ctas">
-    <a href="/login.html" style="display:inline-flex;align-items:center;gap:8px;padding:12px 28px;background:var(--color-primary);color:white;border-radius:var(--radius-md);font-size:15px;font-weight:500;text-decoration:none;transition:background 150ms;" onmouseover="this.style.background='var(--color-accent)'" onmouseout="this.style.background='var(--color-primary)'">
-      Get started free →
-    </a>
-    <a href="#how-it-works" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:transparent;color:var(--text-secondary);border:1px solid var(--color-border-2);border-radius:var(--radius-md);font-size:15px;font-weight:500;text-decoration:none;">
-      See how it works
-    </a>
+    <a href="/login.html" class="hero-cta-primary">Get started free →</a>
+    <a href="#how-it-works" class="hero-cta-secondary">See how it works</a>
   </div>
-  <p class="hero-proof">Free to start &nbsp;·&nbsp; No credit card &nbsp;·&nbsp; 2 minutes to set up</p>
+
+  <p class="hero-proof">No credit card &nbsp;·&nbsp; 2 minutes to set up &nbsp;·&nbsp; Built in India 🇮🇳</p>
 </section>
 
-<!-- Problem / Solution -->
-<div style="max-width:1100px;margin:0 auto;padding:0 var(--space-8) 80px;">
-  <h2 class="section-heading" style="margin-bottom:var(--space-4);">The difference is real.</h2>
-  <p class="section-subheading" style="margin-bottom:var(--space-8);">Same question. Completely different answers.</p>
-  <div class="compare-grid">
-    <div class="compare-card compare-bad">
-      <div class="compare-label">Every other tool:</div>
-      <p style="font-size:13px;color:var(--text-tertiary);margin-bottom:var(--space-4);">Tell me about a time you led a project under pressure.</p>
-      <div class="compare-quote">
+<div class="rule"></div>
+
+<!-- ── The Difference ──────────────────────────────────────── -->
+<div class="compare-wrap">
+  <div class="compare-inner">
+    <div class="compare-col">
+      <div class="compare-tag compare-tag-bad">Every other tool</div>
+      <p class="compare-question">"Tell me about a time you led a project under pressure."</p>
+      <p class="compare-answer">
         "In my previous role, I demonstrated strong leadership by coordinating cross-functional teams to deliver a critical project on time. I communicated effectively with stakeholders and ensured all team members were aligned with our goals..."
-      </div>
-      <p style="font-size:11px;color:var(--color-danger);margin-top:var(--space-3);font-family:var(--font-mono);">Generic. Could be anyone. Interviewers have heard this 100 times.</p>
+      </p>
+      <p class="compare-verdict compare-verdict-bad">Generic. Could be anyone. Interviewers have heard this 1000 times.</p>
     </div>
-    <div class="compare-card compare-good">
-      <div class="compare-label">MNEMIX:</div>
-      <p style="font-size:13px;color:var(--text-tertiary);margin-bottom:var(--space-4);">Tell me about a time you led a project under pressure.</p>
-      <div class="compare-quote">
-        "At Cliplift, our Apify scraper started rate-limiting 3 days before a demo with an investor. I made the call to switch to a local Playwright fallback that same night — I'd discussed this exact tradeoff with my team in Slack two weeks earlier. We shipped at 4am, the demo worked..."
-      </div>
-      <p style="font-size:11px;color:var(--color-success);margin-top:var(--space-3);font-family:var(--font-mono);">Specific. Verifiable. Authentically yours. Impossible to fake.</p>
+    <div class="compare-col">
+      <div class="compare-tag compare-tag-good">MNEMIX answer</div>
+      <p class="compare-question">"Tell me about a time you led a project under pressure."</p>
+      <p class="compare-answer">
+        "At Cliplift, our Apify scraper started rate-limiting 3 days before a demo. I made the call to switch to a local Playwright fallback that same night — I'd actually explored this exact tradeoff with my team two weeks earlier. We shipped at 4am. The demo worked, and the investor asked how we handled reliability..."
+      </p>
+      <p class="compare-verdict compare-verdict-good">Specific. Verifiable. Authentically yours. Impossible to fake.</p>
     </div>
   </div>
 </div>
 
-<!-- How it works -->
-<div id="how-it-works" style="background:var(--color-surface);border-top:1px solid var(--color-border);border-bottom:1px solid var(--color-border);">
-  <div class="section">
-    <h2 class="section-heading">How it works</h2>
-    <p class="section-subheading">Three steps to interview confidence</p>
-    <div class="steps-row">
-      <div class="step-card">
+<div class="rule"></div>
+
+<!-- ── How it works ────────────────────────────────────────── -->
+<div class="section-full" id="how-it-works">
+  <div class="section-inner">
+    <div class="section-label">Process</div>
+    <h2 class="section-heading">Three steps to<br><em>interview confidence</em></h2>
+    <p class="section-sub">
+      From raw AI exports to interview-ready stories in under 10 minutes.
+    </p>
+
+    <div class="steps-grid">
+      <div class="step-card" style="background: var(--color-surface);">
         <div class="step-num">01</div>
         <div class="step-title">Upload your history</div>
-        <div class="step-desc">Drop in your resume PDF and your ChatGPT or Claude export. Takes under 2 minutes.</div>
+        <p class="step-desc">Drop in your resume PDF and your ChatGPT or Claude conversation export. Fully private — processed locally, never sent raw to any AI.</p>
       </div>
-      <div class="step-card">
+      <div class="step-card" style="background: var(--color-surface);">
         <div class="step-num">02</div>
         <div class="step-title">We extract your stories</div>
-        <div class="step-desc">MNEMIX processes your AI conversations and finds every professional experience, decision, and outcome you've discussed.</div>
+        <p class="step-desc">MNEMIX scans every conversation and finds your real professional moments — decisions made, problems solved, lessons learned. Indexed by interview category.</p>
       </div>
-      <div class="step-card">
+      <div class="step-card" style="background: var(--color-surface);">
         <div class="step-num">03</div>
-        <div class="step-title">Practice with your memories</div>
-        <div class="step-desc">Each interview question is answered using your real experiences. The feedback tells you which memories you underused.</div>
+        <div class="step-title">Practice. Get scored.</div>
+        <p class="step-desc">8-question mock sessions with silent evaluation. Your report shows exactly which memories you underused and where your answers fell short.</p>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Features -->
-<div class="section">
-  <h2 class="section-heading">Everything you need to nail it</h2>
-  <p class="section-subheading">Built for engineers who want to prepare, not perform.</p>
+<div class="rule"></div>
+
+<!-- ── Features ────────────────────────────────────────────── -->
+<div class="section" id="features">
+  <div class="section-label">Capabilities</div>
+  <h2 class="section-heading">Built for engineers who want<br><em>to prepare, not perform</em></h2>
+  <p class="section-sub">Everything you need to walk into any interview with genuine confidence.</p>
+
   <div class="feature-grid">
     <div class="feature-card">
-      <div class="feature-icon">🧠</div>
+      <span class="feature-num">F-01</span>
       <div class="feature-title">Personal Memory Bank</div>
-      <div class="feature-desc">Every professional story you've ever discussed with AI, extracted and searchable in seconds.</div>
+      <p class="feature-desc">Every professional story from two years of AI conversations, extracted, categorized, and instantly searchable.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">🔍</div>
+      <span class="feature-num">F-02</span>
       <div class="feature-title">Gap Detection</div>
-      <div class="feature-desc">Know exactly which interview categories you're missing before you sit down with an interviewer.</div>
+      <p class="feature-desc">Know exactly which interview categories are empty before you sit down with a recruiter. Fix gaps with guided prompts.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">📊</div>
-      <div class="feature-title">Authentic Feedback</div>
-      <div class="feature-desc">Scores based on how well you used your real memories — not how polished your answer sounded.</div>
+      <span class="feature-num">F-03</span>
+      <div class="feature-title">Authentic Scoring</div>
+      <p class="feature-desc">Scored on how specifically you drew from your real memories — not how polished your phrasing was.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">💬</div>
+      <span class="feature-num">F-04</span>
       <div class="feature-title">Memory-Aware Chat</div>
-      <div class="feature-desc">Ask "what's my best leadership story?" and get a specific answer drawn from your actual history.</div>
+      <p class="feature-desc">Ask "what's my best leadership story?" and get a specific, sourced answer drawn from your actual history — not a generated one.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">📈</div>
-      <div class="feature-title">Score Tracking</div>
-      <div class="feature-desc">Watch your scores improve across sessions. Pinpoint exactly what changed and why.</div>
+      <span class="feature-num">F-05</span>
+      <div class="feature-title">Session Score Tracking</div>
+      <p class="feature-desc">Watch your scores evolve across sessions. Pinpoint exactly what changed and which question types you improved on.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">🔒</div>
-      <div class="feature-title">Privacy First</div>
-      <div class="feature-desc">Your AI exports are processed locally. We extract stories, not raw data. No PII ever leaves your machine.</div>
+      <span class="feature-num">F-06</span>
+      <div class="feature-title">Privacy by Design</div>
+      <p class="feature-desc">AI exports are processed locally. Only anonymized professional context reaches any LLM. No name, email, or company ever leaves your machine.</p>
     </div>
   </div>
 </div>
 
-<!-- Comparison table -->
-<div style="background:var(--color-surface);border-top:1px solid var(--color-border);border-bottom:1px solid var(--color-border);">
-  <div class="section">
-    <h2 class="section-heading">vs. the competition</h2>
-    <p class="section-subheading">The only tool that uses your actual history.</p>
-    <table class="compare-table">
-      <thead>
-        <tr>
-          <th>Feature</th>
-          <th class="highlight">MNEMIX</th>
-          <th>ParakeetAI</th>
-          <th>LockedIn AI</th>
-          <th>Final Round AI</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Personal memory bank</td>
-          <td class="highlight"><span class="check">✓</span></td>
-          <td><span class="cross">—</span></td>
-          <td><span class="cross">—</span></td>
-          <td><span class="cross">—</span></td>
-        </tr>
-        <tr>
-          <td>Authentic answers (from your history)</td>
-          <td class="highlight"><span class="check">✓</span></td>
-          <td><span class="cross">—</span></td>
-          <td><span class="cross">—</span></td>
-          <td><span class="cross">—</span></td>
-        </tr>
-        <tr>
-          <td>Gap detection</td>
-          <td class="highlight"><span class="check">✓</span></td>
-          <td><span class="cross">—</span></td>
-          <td><span class="cross">—</span></td>
-          <td><span class="cross">—</span></td>
-        </tr>
-        <tr>
-          <td>Memory-aware feedback</td>
-          <td class="highlight"><span class="check">✓</span></td>
-          <td><span class="cross">—</span></td>
-          <td><span class="cross">—</span></td>
-          <td><span class="cross">—</span></td>
-        </tr>
-        <tr>
-          <td>AI export ingestion</td>
-          <td class="highlight"><span class="check">✓</span></td>
-          <td><span class="cross">—</span></td>
-          <td><span class="cross">—</span></td>
-          <td><span class="cross">—</span></td>
-        </tr>
-        <tr>
-          <td>Free tier available</td>
-          <td class="highlight"><span class="check">✓</span></td>
-          <td><span class="check">✓</span></td>
-          <td><span class="cross">—</span></td>
-          <td><span class="cross">—</span></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
+<div class="rule"></div>
 
-<!-- Pricing -->
-<div class="section" id="pricing">
-  <h2 class="section-heading">Simple pricing</h2>
-  <p class="section-subheading">Start free. Upgrade when you're ready to go all-in.</p>
-  <div class="pricing-grid">
-    <div class="pricing-card">
-      <div class="pricing-name">Free</div>
-      <div class="pricing-price">₹0</div>
-      <div class="pricing-period">forever</div>
-      <div class="pricing-features">
-        <div class="pricing-feature"><span class="check">✓</span> 3 sessions per month</div>
-        <div class="pricing-feature"><span class="check">✓</span> Unlimited memory extraction</div>
-        <div class="pricing-feature"><span class="check">✓</span> Resume + AI export ingestion</div>
-        <div class="pricing-feature"><span class="check">✓</span> Gap detection</div>
-        <div class="pricing-feature"><span class="check">✓</span> Full feedback reports</div>
-      </div>
-      <a href="/login.html" class="btn-pricing btn-pricing-outline">Get started free</a>
-    </div>
-    <div class="pricing-card featured">
-      <div class="pricing-badge">Most popular</div>
-      <div class="pricing-name">Starter</div>
-      <div class="pricing-price">₹299</div>
-      <div class="pricing-period">per month</div>
-      <div class="pricing-features">
-        <div class="pricing-feature"><span class="check">✓</span> 20 sessions per month</div>
-        <div class="pricing-feature"><span class="check">✓</span> Memory-aware chat</div>
-        <div class="pricing-feature"><span class="check">✓</span> PDF report export</div>
-        <div class="pricing-feature"><span class="check">✓</span> Score history & trends</div>
-        <div class="pricing-feature"><span class="check">✓</span> Priority processing</div>
-      </div>
-      <a href="/login.html" class="btn-pricing btn-pricing-filled">Start for ₹299/mo →</a>
-    </div>
-    <div class="pricing-card">
-      <div class="pricing-name">Pro</div>
-      <div class="pricing-price">₹599</div>
-      <div class="pricing-period">per month</div>
-      <div class="pricing-features">
-        <div class="pricing-feature"><span class="check">✓</span> Unlimited sessions</div>
-        <div class="pricing-feature"><span class="check">✓</span> Advanced analytics</div>
-        <div class="pricing-feature"><span class="check">✓</span> Team sharing (coming soon)</div>
-        <div class="pricing-feature"><span class="check">✓</span> API access</div>
-        <div class="pricing-feature"><span class="check">✓</span> Early feature access</div>
-      </div>
-      <a href="/login.html" class="btn-pricing btn-pricing-outline">Upgrade to Pro</a>
+<!-- ── Comparison table ─────────────────────────────────────── -->
+<div class="section-full" style="background: var(--color-surface);">
+  <div class="section-inner">
+    <div class="section-label">Comparison</div>
+    <h2 class="section-heading">The only tool that uses<br><em>your actual history</em></h2>
+
+    <div class="ctable-wrap">
+      <table class="ctable">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th class="hl">MNEMIX</th>
+            <th>ParakeetAI</th>
+            <th>LockedIn AI</th>
+            <th>Final Round AI</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Personal memory bank</td>
+            <td class="hl"><span class="check">✓</span></td>
+            <td><span class="cross">—</span></td>
+            <td><span class="cross">—</span></td>
+            <td><span class="cross">—</span></td>
+          </tr>
+          <tr>
+            <td>Authentic answers (from your history)</td>
+            <td class="hl"><span class="check">✓</span></td>
+            <td><span class="cross">—</span></td>
+            <td><span class="cross">—</span></td>
+            <td><span class="cross">—</span></td>
+          </tr>
+          <tr>
+            <td>Gap detection &amp; category coverage</td>
+            <td class="hl"><span class="check">✓</span></td>
+            <td><span class="cross">—</span></td>
+            <td><span class="cross">—</span></td>
+            <td><span class="cross">—</span></td>
+          </tr>
+          <tr>
+            <td>Memory-aware feedback</td>
+            <td class="hl"><span class="check">✓</span></td>
+            <td><span class="cross">—</span></td>
+            <td><span class="cross">—</span></td>
+            <td><span class="cross">—</span></td>
+          </tr>
+          <tr>
+            <td>AI export ingestion (ChatGPT / Claude)</td>
+            <td class="hl"><span class="check">✓</span></td>
+            <td><span class="cross">—</span></td>
+            <td><span class="cross">—</span></td>
+            <td><span class="cross">—</span></td>
+          </tr>
+          <tr>
+            <td>Free tier</td>
+            <td class="hl"><span class="check">✓</span></td>
+            <td><span class="check">✓</span></td>
+            <td><span class="cross">—</span></td>
+            <td><span class="cross">—</span></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>
 
-<!-- Footer -->
-<div style="border-top:1px solid var(--color-border);padding:0 var(--space-8);">
-  <div class="footer">
-    <div class="nav-logo">
-      <div class="nav-logo-mark">M</div>
-      <span class="nav-logo-text">MNEMIX</span>
-      <span style="font-size:12px;color:var(--text-tertiary);margin-left:var(--space-3);">Built in India 🇮🇳</span>
-    </div>
-    <div class="footer-links">
-      <a href="#" class="footer-link">Privacy</a>
-      <a href="#" class="footer-link">Terms</a>
-      <a href="#pricing" class="footer-link">Pricing</a>
-      <a href="/login.html" class="footer-link">Sign in</a>
-    </div>
-    <p style="font-size:12px;color:var(--text-tertiary);">© 2026 MNEMIX</p>
+<div class="rule"></div>
+
+<!-- ── CTA band ──────────────────────────────────────────────── -->
+<div class="cta-band">
+  <div class="cta-inner">
+    <h2 class="cta-heading">
+      Ready to sound like<br><span>yourself?</span>
+    </h2>
+    <p class="cta-sub">
+      Upload your AI export. See your memory bank fill up. Walk into your next interview prepared.
+    </p>
+    <a href="/login.html" class="hero-cta-primary" style="display:inline-flex;">
+      Get started — it's free →
+    </a>
   </div>
 </div>
+
+<!-- ── Footer ───────────────────────────────────────────────── -->
+<footer class="footer">
+  <div class="footer-logo">
+    <div class="nav-logo-mark" style="width:22px;height:22px;font-size:12px;">M</div>
+    <span class="footer-logo-text">MNEMIX</span>
+  </div>
+  <div class="footer-links">
+    <a href="#" class="footer-link">Privacy</a>
+    <a href="#" class="footer-link">Terms</a>
+    <a href="/login.html" class="footer-link">Sign in</a>
+  </div>
+  <p class="footer-copy">© 2026 MNEMIX &nbsp;·&nbsp; Built in India 🇮🇳</p>
+</footer>
 
 </body>
 </html>

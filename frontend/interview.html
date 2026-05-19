@@ -8,7 +8,6 @@
   <meta name="supabase-url" content="https://fodnuozowtdesptqbray.supabase.co">
   <meta name="supabase-anon-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvZG51b3pvd3RkZXNwdHFicmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDIxMzgsImV4cCI6MjA5NDY3ODEzOH0.O1YmQOEqWre1wAjYh3UKa1ANTmsOWAMl98JAsB129u4">
 
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/design-system.css">
   <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="/css/layout.css">
@@ -22,110 +21,256 @@
   <script src="/js/components.js"></script>
 
   <style>
-    /* Setup mode */
-    .session-type-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); margin-bottom: var(--space-8); }
+    /* ── Setup mode ─────────────────────────────────────── */
+    .session-type-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-4); margin-bottom: var(--space-8);
+    }
     .session-type-card {
-      background: var(--color-surface); border: 2px solid var(--color-border);
-      border-radius: var(--radius-lg); padding: var(--space-6);
-      cursor: pointer; transition: all var(--transition-fast); text-align: center;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg); padding: var(--space-8);
+      cursor: pointer; transition: all var(--transition-fast);
+      text-align: center; position: relative; overflow: hidden;
+    }
+    .session-type-card::before {
+      content: '';
+      position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+      background: var(--color-primary);
+      transform: scaleX(0); transform-origin: left;
+      transition: transform var(--transition-normal);
     }
     .session-type-card:hover { border-color: var(--color-border-2); }
-    .session-type-card.selected { border-color: var(--color-primary); background: rgba(99,102,241,0.06); }
-    .session-type-icon { font-size: 28px; margin-bottom: var(--space-3); }
+    .session-type-card.selected {
+      border-color: var(--color-primary);
+      background: rgba(200,133,31,0.04);
+    }
+    .session-type-card.selected::before { transform: scaleX(1); }
+    .session-type-icon {
+      width: 40px; height: 40px;
+      border-radius: var(--radius-md);
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border-2);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto var(--space-4); color: var(--text-secondary);
+    }
+    .session-type-card.selected .session-type-icon {
+      background: var(--color-primary-dim);
+      border-color: rgba(200,133,31,0.3);
+      color: var(--color-primary);
+    }
     .session-type-label { font-size: 15px; font-weight: 600; margin-bottom: var(--space-1); }
-    .session-type-desc { font-size: 12px; color: var(--text-secondary); }
+    .session-type-desc  { font-size: 12px; color: var(--text-secondary); }
 
-    /* Active session — full-screen */
+    /* ── Active session ──────────────────────────────────── */
     .session-wrap {
-      display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+      display: flex; flex-direction: column;
+      height: 100vh; overflow: hidden;
+      background: var(--color-bg);
     }
-    .session-topbar {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0 var(--space-8); height: var(--topbar-height);
-      border-bottom: 1px solid var(--color-border);
-      flex-shrink: 0; background: var(--color-bg);
-    }
-    .session-progress-bar {
+
+    /* Thin amber progress bar at very top */
+    .session-progress-rail {
       height: 2px; background: var(--color-border);
-      position: absolute; top: var(--topbar-height); left: 0; right: 0;
+      flex-shrink: 0; position: relative;
     }
     .session-progress-fill {
       height: 100%; background: var(--color-primary);
-      transition: width var(--transition-slow);
+      transition: width 0.4s ease-out;
+      position: relative;
     }
-    .question-area {
-      flex: 0 0 auto; padding: var(--space-12) var(--space-16) var(--space-8);
-      max-width: 760px; margin: 0 auto; width: 100%;
+    .session-progress-fill::after {
+      content: '';
+      position: absolute; right: 0; top: -2px;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--color-accent);
     }
-    .question-number { font-family: var(--font-mono); font-size: 48px; font-weight: 600; color: var(--color-border-2); line-height: 1; margin-bottom: var(--space-4); }
-    .question-text { font-size: 20px; font-weight: 500; line-height: 1.5; color: var(--text-primary); }
-    .question-category { font-size: 12px; color: var(--text-tertiary); margin-top: var(--space-2); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; }
 
+    /* Top bar */
+    .session-topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 var(--space-8); height: var(--topbar-height);
+      border-bottom: 1px solid var(--color-border); flex-shrink: 0;
+    }
+
+    /* Question area — the centerpiece */
+    .question-area {
+      flex: 0 0 auto;
+      padding: 56px 64px 32px;
+      max-width: 780px; margin: 0 auto; width: 100%;
+      position: relative;
+    }
+    /* Ghost number — enormous Fraunces behind the question */
+    .question-ghost-num {
+      position: absolute;
+      top: 0; left: 40px;
+      font-family: var(--font-display);
+      font-size: 200px; font-weight: 700; font-style: italic;
+      line-height: 1; letter-spacing: -0.04em;
+      color: rgba(200,133,31,0.07);
+      pointer-events: none; user-select: none;
+      transition: opacity 0.3s ease;
+    }
+    .question-category {
+      font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+      color: var(--color-primary); letter-spacing: 0.12em; text-transform: uppercase;
+      margin-bottom: 20px; position: relative; z-index: 1;
+    }
+    .question-text {
+      font-size: 22px; font-weight: 500; line-height: 1.5;
+      color: var(--text-primary); position: relative; z-index: 1;
+      letter-spacing: -0.01em;
+    }
+    .question-counter {
+      position: relative; z-index: 1; margin-top: 12px;
+      font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary);
+    }
+
+    /* Answer area */
     .answer-area {
       flex: 1; display: flex; flex-direction: column;
-      padding: 0 var(--space-16) var(--space-6);
-      max-width: 760px; margin: 0 auto; width: 100%;
+      padding: 0 64px 24px;
+      max-width: 780px; margin: 0 auto; width: 100%;
+    }
+    .answer-rule {
+      height: 1px; background: var(--color-border-2); margin-bottom: 20px;
+    }
+    .answer-hint {
+      font-family: var(--font-mono); font-size: 10px;
+      color: var(--text-tertiary); letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 16px;
     }
     .answer-textarea {
       flex: 1; width: 100%;
-      background: transparent;
-      border: none; border-top: 1px solid var(--color-border);
-      color: var(--text-primary); font-size: 15px; line-height: 1.8;
-      padding: var(--space-4) 0;
-      resize: none; outline: none;
+      background: transparent; border: none;
+      color: var(--text-primary);
+      font-size: 16px; line-height: 1.8;
+      padding: 0; resize: none; outline: none;
       font-family: var(--font-body);
     }
     .answer-textarea::placeholder { color: var(--text-tertiary); }
-    .answer-hint { font-size: 12px; color: var(--text-tertiary); margin-bottom: var(--space-3); }
-    .answer-footer { display: flex; align-items: center; justify-content: space-between; padding-top: var(--space-4); border-top: 1px solid var(--color-border); }
-    .char-count { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); }
+    .answer-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-top: var(--space-4);
+      border-top: 1px solid var(--color-border);
+      margin-top: var(--space-4);
+    }
+    .char-count {
+      font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary);
+    }
 
-    /* Transition overlay */
+    /* Question transition overlay */
     .transition-overlay {
       position: fixed; inset: 0; background: var(--color-bg);
       display: flex; align-items: center; justify-content: center;
       z-index: 200;
     }
-    .transition-text { font-size: 15px; color: var(--text-secondary); font-family: var(--font-mono); }
+    .transition-content { text-align: center; }
+    .transition-checkmark {
+      width: 40px; height: 40px; border-radius: var(--radius-full);
+      background: rgba(74,158,114,0.12); border: 1px solid rgba(74,158,114,0.2);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px; color: var(--color-success);
+      animation: scaleIn 0.2s ease-out;
+    }
+    @keyframes scaleIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+    .transition-text {
+      font-size: 14px; color: var(--text-secondary);
+      font-family: var(--font-mono);
+    }
 
-    /* Evaluating state */
-    .eval-steps { margin-top: var(--space-8); text-align: left; max-width: 360px; }
-    .eval-step { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; font-size: 14px; color: var(--text-tertiary); transition: color var(--transition-normal); }
-    .eval-step.done { color: var(--text-primary); }
-    .eval-step.active { color: var(--color-accent); }
-    .step-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-border-2); flex-shrink: 0; transition: background var(--transition-normal); }
-    .eval-step.done .step-dot { background: var(--color-success); }
-    .eval-step.active .step-dot { background: var(--color-primary); }
+    /* ── Evaluating state ────────────────────────────────── */
+    .eval-wrap {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: var(--space-8);
+    }
+    .eval-logo-mark {
+      width: 56px; height: 56px;
+      background: var(--color-primary-dim);
+      border: 1px solid rgba(200,133,31,0.25);
+      border-radius: var(--radius-xl);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font-display);
+      font-size: 24px; font-weight: 600; font-style: italic;
+      color: var(--color-primary); margin: 0 auto 28px;
+    }
+    .eval-title {
+      font-family: var(--font-display);
+      font-size: 28px; font-weight: 600; font-style: italic;
+      letter-spacing: -0.01em; margin-bottom: 8px;
+    }
+    .eval-sub { font-size: 14px; color: var(--text-secondary); margin-bottom: 40px; }
+    .eval-steps { text-align: left; max-width: 320px; }
+    .eval-step {
+      display: flex; align-items: center; gap: var(--space-3);
+      padding: var(--space-3) 0; font-size: 13px;
+      color: var(--text-tertiary); transition: color var(--transition-normal);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .eval-step:last-child { border-bottom: none; }
+    .eval-step.done   { color: var(--text-primary); }
+    .eval-step.active { color: var(--color-primary); }
+    .step-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: var(--color-border-2); flex-shrink: 0;
+      transition: background var(--transition-normal);
+    }
+    .eval-step.done .step-dot   { background: var(--color-success); }
+    .eval-step.active .step-dot { background: var(--color-primary); animation: amberPulse 1.4s ease-in-out infinite; }
+
+    /* Amber pulse spinner for eval */
+    .eval-spinner {
+      width: 32px; height: 32px;
+      border: 2px solid var(--color-border-2);
+      border-top-color: var(--color-primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 28px;
+    }
   </style>
 </head>
 <body>
 
 <div x-data="interviewPage()" x-init="init()">
 
-  <!-- ── SETUP MODE ──────────────────────────────────────── -->
+  <!-- ── SETUP MODE ─────────────────────────────────────────── -->
   <template x-if="mode === 'setup'">
     <div class="app-shell">
       <div id="sidebar-mount"></div>
       <main class="main-content">
         <header class="page-header">
-          <div class="page-title">Start Interview</div>
+          <div>
+            <div class="page-title">Interview</div>
+            <div class="page-subtitle">Choose your session type</div>
+          </div>
         </header>
-        <div class="page-body" style="max-width: 680px;">
+        <div class="page-body" style="max-width:660px;">
 
           <div class="section-title mb-3">Session type</div>
           <div class="session-type-grid">
-            <div class="session-type-card" :class="{ selected: sessionType === 'behavioral' }" @click="sessionType = 'behavioral'">
-              <div class="session-type-icon">🎯</div>
+            <div class="session-type-card" :class="{selected: sessionType==='behavioral'}" @click="sessionType='behavioral'">
+              <div class="session-type-icon">
+                <i data-lucide="target" style="width:18px;height:18px;"></i>
+              </div>
               <div class="session-type-label">Behavioral</div>
               <div class="session-type-desc">Leadership, conflict, failure, collaboration</div>
             </div>
-            <div class="session-type-card" :class="{ selected: sessionType === 'technical' }" @click="sessionType = 'technical'">
-              <div class="session-type-icon">⚙️</div>
+            <div class="session-type-card" :class="{selected: sessionType==='technical'}" @click="sessionType='technical'">
+              <div class="session-type-icon">
+                <i data-lucide="code-2" style="width:18px;height:18px;"></i>
+              </div>
               <div class="session-type-label">Technical</div>
               <div class="session-type-desc">System design, debugging, tech decisions</div>
             </div>
-            <div class="session-type-card" :class="{ selected: sessionType === 'mixed' }" @click="sessionType = 'mixed'">
-              <div class="session-type-icon">🔀</div>
+            <div class="session-type-card" :class="{selected: sessionType==='mixed'}" @click="sessionType='mixed'">
+              <div class="session-type-icon">
+                <i data-lucide="shuffle" style="width:18px;height:18px;"></i>
+              </div>
               <div class="session-type-label">Mixed</div>
               <div class="session-type-desc">Alternates behavioral and technical</div>
             </div>
@@ -133,10 +278,10 @@
 
           <!-- Memory readiness -->
           <template x-if="gaps.length > 0">
-            <div class="card card-sm mb-8">
+            <div class="card card-sm mb-8" style="border-left:2px solid var(--color-warning);">
               <div class="text-sm font-medium mb-3">Memory readiness</div>
               <div class="flex items-center gap-2 mb-3">
-                <span class="text-sm text-secondary" x-text="`Covered ${coveredCount} of ${totalRequired} required categories`"></span>
+                <span class="text-sm text-secondary" x-text="`${coveredCount} of ${totalRequired} required categories covered`"></span>
               </div>
               <template x-for="gap in topGaps" :key="gap.category">
                 <div class="flex items-center gap-3 mb-2">
@@ -149,44 +294,55 @@
           </template>
 
           <button class="btn btn-primary btn-lg w-full" @click="startSession" :disabled="starting">
-            <span x-show="starting" class="spinner" style="width:16px;height:16px;border-width:2px;"></span>
-            <span x-text="starting ? 'Preparing questions…' : `Start ${sessionType} interview →`"></span>
+            <span x-show="starting" class="spinner" style="width:14px;height:14px;border-width:2px;border-top-color:#0a0906;border-color:rgba(10,9,6,0.3);"></span>
+            <span x-text="starting ? 'Preparing questions…' : `Begin ${sessionType} session →`"></span>
           </button>
 
-          <p class="text-xs text-tertiary text-center mt-4">8 questions · silent evaluation · report at the end</p>
+          <p class="text-xs text-tertiary text-center mt-4">
+            8 questions &nbsp;·&nbsp; silent evaluation &nbsp;·&nbsp; full report at the end
+          </p>
 
         </div>
       </main>
     </div>
   </template>
 
-  <!-- ── ACTIVE SESSION MODE ───────────────────────────────── -->
+  <!-- ── ACTIVE SESSION ──────────────────────────────────────── -->
   <template x-if="mode === 'session'">
     <div class="session-wrap">
+      <!-- Amber progress rail at very top -->
+      <div class="session-progress-rail">
+        <div class="session-progress-fill" :style="`width:${progressPct}%`"></div>
+      </div>
+
       <!-- Top bar -->
-      <div class="session-topbar" style="position:relative;">
-        <div class="flex items-center gap-3">
-          <div class="sidebar-logo-mark" style="width:24px;height:24px;font-size:11px;">M</div>
-          <span class="font-mono text-sm text-secondary" x-text="`Q${currentIndex + 1} of ${totalQuestions}`"></span>
+      <div class="session-topbar">
+        <div class="flex items-center gap-4">
+          <div style="width:24px;height:24px;background:var(--color-primary);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:13px;font-weight:600;font-style:italic;color:#0a0906;">M</div>
           <span class="badge badge-brand" x-text="Utils.categoryLabel(currentQuestion?.category || '')"></span>
         </div>
-        <button class="btn btn-ghost btn-sm" @click="confirmEnd">End session</button>
-        <!-- Progress bar -->
-        <div class="session-progress-bar">
-          <div class="session-progress-fill" :style="`width: ${progressPct}%`"></div>
+        <div class="flex items-center gap-3">
+          <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-tertiary);">
+            <span x-text="currentIndex+1"></span><span style="color:var(--color-border-2);">/</span><span x-text="totalQuestions"></span>
+          </span>
+          <button class="btn btn-ghost btn-sm" @click="confirmEnd" style="font-size:12px;">End</button>
         </div>
       </div>
 
       <!-- Question -->
       <div class="question-area">
-        <div class="question-number" x-text="String(currentIndex + 1).padStart(2, '0')"></div>
-        <div class="question-text" x-text="currentQuestion?.text"></div>
+        <!-- Ghost number — the memorable detail -->
+        <div class="question-ghost-num" x-text="String(currentIndex+1).padStart(2,'0')"></div>
+
         <div class="question-category" x-text="Utils.categoryLabel(currentQuestion?.category || '')"></div>
+        <div class="question-text" x-text="currentQuestion?.text"></div>
+        <div class="question-counter" x-text="`Question ${currentIndex+1} of ${totalQuestions}`"></div>
       </div>
 
       <!-- Answer -->
       <div class="answer-area">
-        <div class="answer-hint">Your answer — take your time, be specific</div>
+        <div class="answer-rule"></div>
+        <div class="answer-hint">Your answer &mdash; be specific, draw from real experience</div>
         <textarea
           class="answer-textarea"
           placeholder="Describe a specific situation, what you did, and what happened…"
@@ -199,10 +355,10 @@
         <div class="answer-footer">
           <span class="char-count" x-text="`${currentAnswer.length} chars`"></span>
           <div class="flex items-center gap-3">
-            <span class="text-xs text-tertiary">Ctrl+Enter to submit</span>
+            <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-tertiary);">Ctrl+Enter to submit</span>
             <button class="btn btn-primary" @click="submitAnswer" :disabled="submitting || !currentAnswer.trim()">
-              <span x-show="submitting" class="spinner" style="width:14px;height:14px;border-width:2px;"></span>
-              <span x-text="isLastQuestion ? 'Submit & finish →' : 'Submit answer →'"></span>
+              <span x-show="submitting" class="spinner" style="width:12px;height:12px;border-width:2px;border-top-color:#0a0906;border-color:rgba(10,9,6,0.3);"></span>
+              <span x-text="isLastQuestion ? 'Finish session →' : 'Next question →'"></span>
             </button>
           </div>
         </div>
@@ -210,24 +366,24 @@
     </div>
   </template>
 
-  <!-- ── EVALUATING MODE ───────────────────────────────────── -->
+  <!-- ── EVALUATING ──────────────────────────────────────────── -->
   <template x-if="mode === 'evaluating'">
-    <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:var(--space-8);">
-      <div class="sidebar-logo-mark" style="width:48px;height:48px;font-size:20px;margin-bottom:var(--space-6);">M</div>
-      <div class="spinner spinner-lg mb-6"></div>
-      <h2 class="text-xl font-semibold mb-2">Evaluating your responses…</h2>
-      <p class="text-secondary text-sm mb-2">This takes about 20–30 seconds</p>
+    <div class="eval-wrap">
+      <div class="eval-logo-mark">M</div>
+      <div class="eval-spinner"></div>
+      <h2 class="eval-title">Evaluating your responses…</h2>
+      <p class="eval-sub">Matching answers to your memory bank. Takes about 20–30 seconds.</p>
 
       <div class="eval-steps">
-        <div class="eval-step" :class="{ done: evalStep > 0, active: evalStep === 0 }">
+        <div class="eval-step" :class="{done:evalStep>0, active:evalStep===0}">
           <div class="step-dot"></div>
           Matching answers to your memories
         </div>
-        <div class="eval-step" :class="{ done: evalStep > 1, active: evalStep === 1 }">
+        <div class="eval-step" :class="{done:evalStep>1, active:evalStep===1}">
           <div class="step-dot"></div>
           Scoring each response
         </div>
-        <div class="eval-step" :class="{ done: evalStep > 2, active: evalStep === 2 }">
+        <div class="eval-step" :class="{done:evalStep>2, active:evalStep===2}">
           <div class="step-dot"></div>
           Generating your feedback report
         </div>
@@ -235,10 +391,15 @@
     </div>
   </template>
 
-  <!-- Brief transition overlay -->
+  <!-- Question transition overlay -->
   <template x-if="showTransition">
     <div class="transition-overlay">
-      <span class="transition-text" x-text="transitionText"></span>
+      <div class="transition-content">
+        <div class="transition-checkmark">
+          <i data-lucide="check" style="width:18px;height:18px;"></i>
+        </div>
+        <div class="transition-text" x-text="transitionText"></div>
+      </div>
     </div>
   </template>
 
@@ -251,13 +412,12 @@
   function interviewPage() {
     return {
       ...appBase('interview'),
-      mode: 'setup',      // 'setup' | 'session' | 'evaluating'
+      mode: 'setup',
       sessionType: 'behavioral',
       starting: false,
       gaps: [],
       totalRequired: 13,
 
-      // Session state
       sessionId: null,
       questions: [],
       currentIndex: 0,
@@ -265,26 +425,21 @@
       submitting: false,
       showTransition: false,
       transitionText: '',
-
-      // Eval state
       evalStep: 0,
-      evalTimer: null,
 
       get currentQuestion() { return this.questions[this.currentIndex] || null; },
-      get totalQuestions() { return this.questions.length; },
-      get isLastQuestion() { return this.currentIndex === this.totalQuestions - 1; },
-      get progressPct() { return this.totalQuestions ? ((this.currentIndex) / this.totalQuestions) * 100 : 0; },
-      get coveredCount() { return this.totalRequired - this.gaps.length; },
-      get topGaps() { return this.gaps.filter(g => g.priority === 'high').slice(0, 3); },
+      get totalQuestions()  { return this.questions.length; },
+      get isLastQuestion()  { return this.currentIndex === this.totalQuestions - 1; },
+      get progressPct()     { return this.totalQuestions ? (this.currentIndex / this.totalQuestions) * 100 : 0; },
+      get coveredCount()    { return this.totalRequired - this.gaps.length; },
+      get topGaps()         { return this.gaps.filter(g => g.priority === 'high').slice(0, 3); },
 
       async init() {
         await this._init();
-        // Check URL param for auto-start type
         const typeParam = Utils.getParam('type');
         if (typeParam && ['behavioral','technical','mixed'].includes(typeParam)) {
           this.sessionType = typeParam;
         }
-        // Check for in-progress session in localStorage
         const saved = localStorage.getItem('mnemix_active_session');
         if (saved) {
           const { sessionId, questions, currentIndex } = JSON.parse(saved);
@@ -302,7 +457,7 @@
         try {
           const gapsData = await API.getGaps();
           this.gaps = gapsData.gaps || [];
-        } catch { /* non-critical */ }
+        } catch {}
         this.$nextTick(() => lucide.createIcons());
       },
 
@@ -328,15 +483,13 @@
         if (!this.currentAnswer.trim() || this.submitting) return;
         this.submitting = true;
         try {
-          const payload = {
-            session_id: this.sessionId,
-            question_id: this.currentQuestion.id,
+          await API.submitAnswer({
+            session_id:    this.sessionId,
+            question_id:   this.currentQuestion.id,
             question_text: this.currentQuestion.text,
-            answer_text: this.currentAnswer.trim(),
-            answer_order: this.currentIndex + 1,
-          };
-          await API.submitAnswer(payload);
-
+            answer_text:   this.currentAnswer.trim(),
+            answer_order:  this.currentIndex + 1,
+          });
           if (this.isLastQuestion) {
             localStorage.removeItem('mnemix_active_session');
             this.startEvaluation();
@@ -355,16 +508,15 @@
       },
 
       async showNextTransition() {
-        this.transitionText = 'Got it. Next question…';
+        this.transitionText = 'Got it.';
         this.showTransition = true;
-        await new Promise(r => setTimeout(r, 1200));
+        await new Promise(r => setTimeout(r, 900));
         this.showTransition = false;
       },
 
       startEvaluation() {
         this.mode = 'evaluating';
         this.evalStep = 0;
-        // Advance step indicators
         setTimeout(() => { this.evalStep = 1; }, 5000);
         setTimeout(() => { this.evalStep = 2; }, 12000);
         this.pollEvaluation();
@@ -384,23 +536,20 @@
               this.mode = 'setup';
               return;
             }
-          } catch { /* ignore */ }
-          attempts++;
-          if (attempts < 60) setTimeout(poll, 5000);
+          } catch {}
+          if (++attempts < 60) setTimeout(poll, 5000);
         };
         poll();
       },
 
       saveProgress() {
         localStorage.setItem('mnemix_active_session', JSON.stringify({
-          sessionId: this.sessionId,
-          questions: this.questions,
-          currentIndex: this.currentIndex,
+          sessionId: this.sessionId, questions: this.questions, currentIndex: this.currentIndex,
         }));
       },
 
       confirmEnd() {
-        if (confirm('End this session? Your answers so far will not be evaluated.')) {
+        if (confirm('End this session? Answers so far will not be evaluated.')) {
           localStorage.removeItem('mnemix_active_session');
           this.mode = 'setup';
         }

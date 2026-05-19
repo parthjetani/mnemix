@@ -8,7 +8,6 @@
   <meta name="supabase-url" content="https://fodnuozowtdesptqbray.supabase.co">
   <meta name="supabase-anon-key" content="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZvZG51b3pvd3RkZXNwdHFicmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxMDIxMzgsImV4cCI6MjA5NDY3ODEzOH0.O1YmQOEqWre1wAjYh3UKa1ANTmsOWAMl98JAsB129u4">
 
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/design-system.css">
   <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="/css/layout.css">
@@ -233,8 +232,8 @@
             labels: data.map(s => Utils.formatDate(s.started_at)),
             datasets: [{
               data: data.map(s => Math.round(s.overall_score)),
-              borderColor: 'rgba(99,102,241,0.8)',
-              backgroundColor: 'rgba(99,102,241,0.08)',
+              borderColor: 'rgba(200,133,31,0.8)',
+              backgroundColor: 'rgba(200,133,31,0.07)',
               tension: 0.4,
               fill: true,
               pointBackgroundColor: data.map(s => {
