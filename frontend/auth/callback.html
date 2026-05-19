@@ -69,20 +69,30 @@
 
       statusEl.textContent = 'Signed in! Redirecting…';
 
-      // Check if user has completed onboarding (profile field set)
+      // Fast path: if this device has already completed onboarding, go straight to dashboard
+      if (localStorage.getItem('mnemix_onboarded') === 'true') {
+        window.location.href = '/dashboard.html';
+        return;
+      }
+
+      // Slow path: check profile + memory count to detect returning users
       try {
-        const profile = await fetch('/api/v1/profile', {
-          headers: { 'Authorization': `Bearer ${session.access_token}` }
-        });
-        const data = await profile.json();
-        // last_updated is null for brand-new users (profile row not yet saved)
-        if (profile.ok && data.last_updated) {
+        const headers = { 'Authorization': `Bearer ${session.access_token}` };
+        const [profileResp, memResp] = await Promise.all([
+          fetch('/api/v1/profile', { headers }),
+          fetch('/api/v1/memory/profile', { headers }),
+        ]);
+        const profileData = await profileResp.json();
+        const memData = await memResp.json();
+        // Consider onboarded if profile was saved OR any memories exist
+        const onboarded = (profileResp.ok && profileData.last_updated) || (memResp.ok && memData.total_memories > 0);
+        if (onboarded) {
+          localStorage.setItem('mnemix_onboarded', 'true');
           window.location.href = '/dashboard.html';
         } else {
           window.location.href = '/onboarding.html';
         }
       } catch {
-        // Can't check profile — send to onboarding as safe default
         window.location.href = '/onboarding.html';
       }
 

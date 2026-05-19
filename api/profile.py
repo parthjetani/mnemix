@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -58,6 +59,8 @@ async def update_profile(
         row.target_roles = json.dumps(data["target_roles"])
     if "career_narrative" in data:
         row.career_narrative = data["career_narrative"]
+
+    row.last_updated = datetime.now(timezone.utc).isoformat()
 
     await db.commit()
     await db.refresh(row)

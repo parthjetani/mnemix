@@ -339,6 +339,28 @@
       async init() {
         const session = await Auth.requireAuth();
         if (!session) return;
+
+        // If already onboarded (profile saved on this device or memories exist), skip to dashboard
+        if (localStorage.getItem('mnemix_onboarded') === 'true') {
+          window.location.href = '/dashboard.html';
+          return;
+        }
+        try {
+          const headers = { 'Authorization': `Bearer ${session.access_token}` };
+          const [profileResp, memResp] = await Promise.all([
+            fetch('/api/v1/profile', { headers }),
+            fetch('/api/v1/memory/profile', { headers }),
+          ]);
+          const profileData = await profileResp.json();
+          const memData = await memResp.json();
+          // Skip onboarding if profile was saved OR if memories already exist
+          if ((profileResp.ok && profileData.last_updated) || (memResp.ok && memData.total_memories > 0)) {
+            localStorage.setItem('mnemix_onboarded', 'true');
+            window.location.href = '/dashboard.html';
+            return;
+          }
+        } catch { /* non-critical */ }
+
         this.$nextTick(() => lucide.createIcons());
       },
 
