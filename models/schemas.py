@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Literal, Optional
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 MemoryCategory = Literal[
     "leadership", "conflict_resolution", "failure_learning", "technical_achievement",
@@ -148,9 +148,9 @@ class IngestResponse(BaseModel):
 
 
 class MemoryAddRequest(BaseModel):
-    content: str
+    content: str = Field(min_length=1, max_length=8_000)
     category: MemoryCategory
-    themes: list[str] = []
+    themes: list[str] = Field(default_factory=list, max_length=20)
 
 
 class InterviewStartRequest(BaseModel):
@@ -161,6 +161,6 @@ class InterviewStartRequest(BaseModel):
 class AnswerRequest(BaseModel):
     session_id: str
     question_id: str
-    question_text: str = ""
-    answer_text: str
+    question_text: str = Field(default="", max_length=2_000)
+    answer_text: str = Field(min_length=1, max_length=20_000)
     answer_order: int = 0

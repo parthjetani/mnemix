@@ -443,7 +443,13 @@
         const saved = localStorage.getItem('mnemix_active_session');
         if (saved) {
           const { sessionId, questions, currentIndex } = JSON.parse(saved);
-          if (confirm('Resume your in-progress session?')) {
+          // Skip resume dialog for sessions that are already on (or past) the last
+          // question — the answer to Q8 either submitted (and the session is now
+          // being evaluated) or was lost mid-submit and we can't recover anyway.
+          const lastIdx = Array.isArray(questions) ? questions.length - 1 : 0;
+          if (currentIndex >= lastIdx) {
+            localStorage.removeItem('mnemix_active_session');
+          } else if (confirm('Resume your in-progress session?')) {
             this.sessionId = sessionId;
             this.questions = questions;
             this.currentIndex = currentIndex;

@@ -7,6 +7,7 @@ from llm.router import llm_router, LLMError
 from llm.prompts import EXTRACTION_PROMPT
 from models.schemas import MemoryCreate
 from core.processing.classifier import classify, PROFESSIONAL_KEYWORDS
+from core.processing.anonymize import escape_braces
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +50,7 @@ async def extract_memories(
     prompt = EXTRACTION_PROMPT.format(
         field=field,
         role="software engineer",
-        user_messages=user_messages_text,
+        user_messages=escape_braces(user_messages_text),
     )
 
     try:
@@ -66,6 +67,10 @@ async def extract_memories(
         try:
             confidence = float(m.get("confidence", 0.0))
             if confidence < settings.MIN_CONFIDENCE_THRESHOLD:
+                logger.debug(
+                    f"Memory dropped (confidence {confidence} < threshold "
+                    f"{settings.MIN_CONFIDENCE_THRESHOLD}): {str(m.get('content', ''))[:80]}"
+                )
                 continue
             memories.append(MemoryCreate(
                 content=m.get("content", ""),
@@ -78,7 +83,8 @@ async def extract_memories(
                 has_outcome=bool(m.get("has_outcome", False)),
                 outcome_quantified=bool(m.get("outcome_quantified", False)),
             ))
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Memory dropped (validation failed: {e}): {str(m)[:120]}")
             continue
 
     return memories

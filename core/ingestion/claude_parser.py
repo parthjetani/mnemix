@@ -3,6 +3,8 @@ import re
 import zipfile
 from pathlib import Path
 
+from core.processing.anonymize import anonymize, check_zip_size
+
 # Match [Human] turns — handles both \n\n[Human]\n and \n\nHuman: formats
 _HUMAN_SPLIT_RE = re.compile(
     r'\n{1,2}(?:\[Human\]|Human:)\s*',
@@ -20,7 +22,7 @@ def _extract_human_turns(content: str) -> list[str]:
     for chunk in chunks[1:]:
         human_text = _ASSISTANT_RE.split(chunk)[0].strip()
         if len(human_text.split()) >= 20:
-            turns.append(human_text)
+            turns.append(anonymize(human_text))
     return turns
 
 
@@ -55,7 +57,7 @@ def _parse_conversations_json(data: list) -> list[dict]:
                     if text:
                         break
             if text and len(text.split()) >= 20:
-                human_turns.append(text)
+                human_turns.append(anonymize(text))
         if human_turns:
             segments.append({
                 "conversation_id": conv.get("uuid", ""),
@@ -72,6 +74,7 @@ async def parse_claude_export(file_path: Path) -> list[dict]:
 
     if suffix == ".zip":
         with zipfile.ZipFile(file_path, "r") as zf:
+            check_zip_size(zf)
             names = zf.namelist()
             # Prefer JSON export format (conversations.json)
             if "conversations.json" in names:

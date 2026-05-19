@@ -42,6 +42,15 @@ async def _run_evaluation(session_id: str) -> None:
                     await asyncio.sleep(3)
                 else:
                     logger.error(f"Evaluation background task failed for {session_id}: {exc}", exc_info=True)
+                    # Mark the session failed so the UI can stop polling and surface an error.
+                    try:
+                        async with async_session_factory() as fail_db:
+                            session = await fail_db.get(InterviewSessionORM, session_id)
+                            if session and session.status != "complete":
+                                session.status = "failed"
+                                await fail_db.commit()
+                    except Exception as mark_err:
+                        logger.error(f"Could not mark session {session_id} as failed: {mark_err}")
                     return
 
 

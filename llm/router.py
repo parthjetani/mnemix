@@ -71,7 +71,10 @@ class LLMRouter:
                 messages=messages,
                 max_tokens=max_tokens,
             )
-            return response.choices[0].message.content
+            content = response.choices[0].message.content
+            if not content:
+                raise LLMError(f"Empty response from primary provider for task '{task}' (model={model})")
+            return content
 
         except OpenAIError as primary_err:
             fallback_model = OPENROUTER_FALLBACKS[task]
@@ -85,7 +88,10 @@ class LLMRouter:
                     messages=messages,
                     max_tokens=max_tokens,
                 )
-                return response.choices[0].message.content
+                content = response.choices[0].message.content
+                if not content:
+                    raise LLMError(f"Empty response from fallback provider for task '{task}' (model={fallback_model})")
+                return content
             except OpenAIError as fallback_err:
                 raise LLMError(
                     f"Both Groq and OpenRouter failed for task '{task}'. "

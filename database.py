@@ -2,7 +2,7 @@ import asyncio
 import ssl
 from sqlalchemy import (
     Column, Text, Integer, Float, LargeBinary, Boolean,
-    ForeignKey, String,
+    ForeignKey, String, text,
 )
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
@@ -33,6 +33,7 @@ class MemoryORM(Base):
     __tablename__ = "memories"
 
     id = Column(Text, primary_key=True)
+    user_id = Column(Text, nullable=True, index=True)   # Planted for multi-user. Not enforced yet.
     content = Column(Text, nullable=False)
     category = Column(Text, nullable=False)
     themes = Column(Text, default="[]")            # JSON array as text
@@ -52,6 +53,7 @@ class InterviewSessionORM(Base):
     __tablename__ = "interview_sessions"
 
     id = Column(Text, primary_key=True)
+    user_id = Column(Text, nullable=True, index=True)   # Planted for multi-user. Not enforced yet.
     started_at = Column(Text)
     completed_at = Column(Text)
     session_type = Column(Text)
@@ -99,6 +101,7 @@ class IngestionJobORM(Base):
     __tablename__ = "ingestion_jobs"
 
     id = Column(Text, primary_key=True)
+    user_id = Column(Text, nullable=True, index=True)   # Planted for multi-user. Not enforced yet.
     source_type = Column(Text)
     status = Column(Text, default="pending")
     progress = Column(Integer, default=0)
@@ -126,9 +129,22 @@ class UserProfileORM(Base):
     last_updated = Column(Text)
 
 
+_USER_ID_MIGRATIONS = (
+    "ALTER TABLE memories ADD COLUMN IF NOT EXISTS user_id TEXT",
+    "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS user_id TEXT",
+    "ALTER TABLE ingestion_jobs ADD COLUMN IF NOT EXISTS user_id TEXT",
+    "CREATE INDEX IF NOT EXISTS memories_user_id_idx ON memories (user_id)",
+    "CREATE INDEX IF NOT EXISTS interview_sessions_user_id_idx ON interview_sessions (user_id)",
+    "CREATE INDEX IF NOT EXISTS ingestion_jobs_user_id_idx ON ingestion_jobs (user_id)",
+)
+
+
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        # Idempotent migration: plant user_id on pre-existing tables.
+        for stmt in _USER_ID_MIGRATIONS:
+            await conn.execute(text(stmt))
 
 
 async def get_db():

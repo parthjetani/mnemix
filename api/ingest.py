@@ -1,4 +1,3 @@
-import shutil
 import tempfile
 from pathlib import Path
 
@@ -21,6 +20,32 @@ import uuid
 from datetime import datetime, timezone
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
+
+MAX_RESUME_BYTES = 50 * 1024 * 1024    # 50 MB
+MAX_EXPORT_BYTES = 200 * 1024 * 1024   # 200 MB
+
+
+def _save_upload_with_limit(upload: UploadFile, suffix: str, max_bytes: int) -> Path:
+    """Copy the upload to a temp file, aborting if it exceeds max_bytes."""
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+    written = 0
+    try:
+        while True:
+            chunk = upload.file.read(1024 * 1024)
+            if not chunk:
+                break
+            written += len(chunk)
+            if written > max_bytes:
+                tmp.close()
+                Path(tmp.name).unlink(missing_ok=True)
+                raise HTTPException(
+                    status_code=413,
+                    detail={"error": f"File too large (max {max_bytes // (1024*1024)} MB)"},
+                )
+            tmp.write(chunk)
+    finally:
+        tmp.close()
+    return Path(tmp.name)
 
 
 async def _run_resume_ingestion(job_id: str, temp_path: Path) -> None:
@@ -118,6 +143,15 @@ async def ingest_resume(
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files accepted")
 
+    if file.size is not None and file.size > MAX_RESUME_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail={"error": f"Resume too large (max {MAX_RESUME_BYTES // (1024*1024)} MB)"},
+        )
+
+    suffix = Path(file.filename).suffix
+    temp_path = _save_upload_with_limit(file, suffix, MAX_RESUME_BYTES)
+
     job_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
 
@@ -130,12 +164,6 @@ async def ingest_resume(
     )
     db.add(job)
     await db.commit()   # commit before background task so it can see the row
-
-    suffix = Path(file.filename).suffix
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-    shutil.copyfileobj(file.file, tmp)
-    tmp.close()
-    temp_path = Path(tmp.name)
 
     background_tasks.add_task(_run_resume_ingestion, job_id, temp_path)
 
@@ -153,6 +181,16 @@ async def ingest_ai_export(
     if source_type not in ("chatgpt", "claude"):
         raise HTTPException(status_code=400, detail="source_type must be 'chatgpt' or 'claude'")
 
+    if file.size is not None and file.size > MAX_EXPORT_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail={"error": f"Export too large (max {MAX_EXPORT_BYTES // (1024*1024)} MB)"},
+        )
+
+    filename = file.filename or "export.zip"
+    suffix = Path(filename).suffix or ".zip"
+    temp_path = _save_upload_with_limit(file, suffix, MAX_EXPORT_BYTES)
+
     job_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
 
@@ -165,13 +203,6 @@ async def ingest_ai_export(
     )
     db.add(job)
     await db.commit()   # commit before background task so it can see the row
-
-    filename = file.filename or f"export.{'zip' if source_type == 'chatgpt' else 'zip'}"
-    suffix = Path(filename).suffix or ".zip"
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
-    shutil.copyfileobj(file.file, tmp)
-    tmp.close()
-    temp_path = Path(tmp.name)
 
     background_tasks.add_task(_run_ai_export_ingestion, job_id, temp_path, source_type)
 

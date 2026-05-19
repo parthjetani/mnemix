@@ -1,5 +1,4 @@
-import re
-import json
+import logging
 from pathlib import Path
 
 import fitz  # pymupdf
@@ -7,12 +6,9 @@ import fitz  # pymupdf
 from llm.router import llm_router, LLMError
 from llm.prompts import EXTRACTION_PROMPT
 from models.schemas import MemoryCreate
+from core.processing.anonymize import anonymize, escape_braces
 
-
-_EMAIL_RE = re.compile(r'[\w.+-]+@[\w-]+\.\w+')
-_PHONE_RE = re.compile(r'(\+?\d[\d\s\-().]{7,}\d)')
-_URL_RE = re.compile(r'https?://\S+|www\.\S+')
-_LINKEDIN_RE = re.compile(r'linkedin\.com/\S+', re.IGNORECASE)
+logger = logging.getLogger(__name__)
 
 
 def _extract_text(pdf_path: Path) -> str:
@@ -22,22 +18,14 @@ def _extract_text(pdf_path: Path) -> str:
     return "\n".join(pages)
 
 
-def _anonymize(text: str) -> str:
-    text = _EMAIL_RE.sub("[EMAIL]", text)
-    text = _PHONE_RE.sub("[PHONE]", text)
-    text = _LINKEDIN_RE.sub("[LINKEDIN]", text)
-    text = _URL_RE.sub("[URL]", text)
-    return text
-
-
 async def parse_resume(file_path: Path) -> dict:
     raw_text = _extract_text(file_path)
-    clean_text = _anonymize(raw_text)
+    clean_text = anonymize(raw_text)
 
     prompt = EXTRACTION_PROMPT.format(
         field="software_engineering",
         role="software engineer",
-        user_messages=clean_text[:6000],  # stay within token limits
+        user_messages=escape_braces(clean_text[:6000]),  # stay within token limits
     )
 
     try:
@@ -61,7 +49,8 @@ async def parse_resume(file_path: Path) -> dict:
                 has_outcome=bool(m.get("has_outcome", False)),
                 outcome_quantified=bool(m.get("outcome_quantified", False)),
             ))
-        except Exception:
+        except Exception as e:
+            logger.debug(f"Resume memory dropped: {e}")
             continue
 
     return {

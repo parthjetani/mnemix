@@ -3,6 +3,8 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+from core.processing.anonymize import anonymize, check_zip_size
+
 
 def _timestamp_to_iso(ts) -> str | None:
     if ts is None:
@@ -26,7 +28,7 @@ def _extract_messages_from_mapping(mapping: dict) -> list[str]:
         parts = content.get("parts", [])
         text = " ".join(str(p) for p in parts if isinstance(p, str)).strip()
         if len(text.split()) >= 20:
-            messages.append(text)
+            messages.append(anonymize(text))
     return messages
 
 
@@ -38,7 +40,7 @@ def _extract_messages_legacy(messages_list: list) -> list[str]:
             continue
         text = msg.get("content", "").strip()
         if len(text.split()) >= 20:
-            results.append(text)
+            results.append(anonymize(text))
     return results
 
 
@@ -70,6 +72,7 @@ async def parse_chatgpt_export(file_path: Path) -> list[dict]:
 
     if suffix == ".zip":
         with zipfile.ZipFile(file_path, "r") as zf:
+            check_zip_size(zf)
             names = zf.namelist()
             json_file = next(
                 (n for n in names if n.endswith("conversations.json")), None
