@@ -63,7 +63,7 @@ async def detect_gaps(db: AsyncSession) -> list[dict]:
                     gap_categories=gap_list,
                     memory_counts=memory_counts,
                 ),
-                max_tokens=600,
+                max_tokens=2000,
             )
             parsed = llm_router.parse_json_response(result)
             for item in parsed.get("gap_questions", []):

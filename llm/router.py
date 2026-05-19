@@ -95,8 +95,13 @@ class LLMRouter:
     def parse_json_response(self, text: str) -> dict:
         import re
         cleaned = text.strip()
-        # Strip <think>...</think> blocks (qwen3, deepseek-r1 thinking models)
+        # Strip <think>...</think> blocks (qwen3, deepseek-r1 thinking models).
+        # Handle both complete blocks and truncated ones (no closing tag).
         cleaned = re.sub(r'<think>.*?</think>', '', cleaned, flags=re.DOTALL).strip()
+        # If still starts with <think> (truncated — no closing tag), drop everything
+        # up to the first JSON object/array that follows.
+        if '<think>' in cleaned:
+            cleaned = re.sub(r'<think>.*', '', cleaned, flags=re.DOTALL).strip()
         # Strip markdown fences
         if cleaned.startswith("```"):
             lines = cleaned.split("\n")
