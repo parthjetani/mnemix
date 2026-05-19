@@ -3,6 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import MemoryORM, UserProfileORM, get_db
+from core.auth import get_current_user
 from llm.embeddings import embed
 from core.memory.store import save_memory, count_memories_by_category
 from core.memory.retriever import memory_retriever
@@ -13,7 +14,10 @@ router = APIRouter(prefix="/memory", tags=["memory"])
 
 
 @router.get("/profile")
-async def get_memory_profile(db: AsyncSession = Depends(get_db)):
+async def get_memory_profile(
+    db: AsyncSession = Depends(get_db),
+    _user: dict = Depends(get_current_user),
+):
     category_counts = await count_memories_by_category(db)
 
     result = await db.execute(select(MemoryORM).order_by(MemoryORM.access_count.desc()).limit(5))
@@ -49,13 +53,20 @@ async def get_memory_profile(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/gaps")
-async def get_memory_gaps(db: AsyncSession = Depends(get_db)):
+async def get_memory_gaps(
+    db: AsyncSession = Depends(get_db),
+    _user: dict = Depends(get_current_user),
+):
     gaps = await detect_gaps(db)
     return {"gaps": gaps, "total_gaps": len(gaps)}
 
 
 @router.post("/add", response_model=Memory)
-async def add_memory(request: MemoryAddRequest, db: AsyncSession = Depends(get_db)):
+async def add_memory(
+    request: MemoryAddRequest,
+    db: AsyncSession = Depends(get_db),
+    _user: dict = Depends(get_current_user),
+):
     embedding = embed(request.content)
     memory_id = await save_memory(request, embedding, db)
     await memory_retriever.add_to_index(memory_id, embedding)
@@ -84,7 +95,12 @@ async def add_memory(request: MemoryAddRequest, db: AsyncSession = Depends(get_d
 
 
 @router.get("/search")
-async def search_memories(q: str, top_k: int = 5, db: AsyncSession = Depends(get_db)):
+async def search_memories(
+    q: str,
+    top_k: int = 5,
+    db: AsyncSession = Depends(get_db),
+    _user: dict = Depends(get_current_user),
+):
     if not q.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty")
     results = await memory_retriever.search(q, db, top_k=min(top_k, 20))

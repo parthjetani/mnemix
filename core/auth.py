@@ -13,12 +13,16 @@ async def get_current_user(authorization: str = Header(default=None)) -> dict:
     if not token:
         raise HTTPException(status_code=401, detail={"error": "Empty token"})
 
-    # Dev bypass — localhost testing when email rate-limited
-    if token == "dev-local":
+    # Dev bypass — localhost testing only; gated behind DEBUG so it can't fire
+    # accidentally in a deployed environment.
+    if settings.DEBUG and token == "dev-local":
         return {"id": "dev-user", "email": "dev@localhost"}
 
     if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
-        return {"id": "demo-user", "email": "demo@mnemix.local"}
+        raise HTTPException(
+            status_code=503,
+            detail={"error": "Auth provider not configured"},
+        )
 
     async with httpx.AsyncClient(timeout=8.0) as client:
         resp = await client.get(

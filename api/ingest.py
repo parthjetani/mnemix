@@ -6,6 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import IngestionJobORM, get_db
+from core.auth import get_current_user
 from llm.embeddings import embed
 from core.ingestion.resume_parser import parse_resume
 from core.ingestion.chatgpt_parser import parse_chatgpt_export
@@ -112,6 +113,7 @@ async def ingest_resume(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
+    _user: dict = Depends(get_current_user),
 ):
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files accepted")
@@ -146,6 +148,7 @@ async def ingest_ai_export(
     file: UploadFile = File(...),
     source_type: str = Form(...),
     db: AsyncSession = Depends(get_db),
+    _user: dict = Depends(get_current_user),
 ):
     if source_type not in ("chatgpt", "claude"):
         raise HTTPException(status_code=400, detail="source_type must be 'chatgpt' or 'claude'")
@@ -176,7 +179,10 @@ async def ingest_ai_export(
 
 
 @router.get("/jobs")
-async def list_jobs(db: AsyncSession = Depends(get_db)):
+async def list_jobs(
+    db: AsyncSession = Depends(get_db),
+    _user: dict = Depends(get_current_user),
+):
     from sqlalchemy import select
     result = await db.execute(
         select(IngestionJobORM).order_by(IngestionJobORM.created_at.desc())
@@ -202,7 +208,11 @@ async def list_jobs(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/status/{job_id}")
-async def get_ingest_status(job_id: str, db: AsyncSession = Depends(get_db)):
+async def get_ingest_status(
+    job_id: str,
+    db: AsyncSession = Depends(get_db),
+    _user: dict = Depends(get_current_user),
+):
     job = await db.get(IngestionJobORM, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 from database import InterviewSessionORM, get_db
+from core.auth import get_current_user
 from core.interview.question_bank import select_questions
 from core.interview.session import (
     create_session,
@@ -45,7 +46,11 @@ async def _run_evaluation(session_id: str) -> None:
 
 
 @router.post("/start")
-async def start_interview(request: InterviewStartRequest, db: AsyncSession = Depends(get_db)):
+async def start_interview(
+    request: InterviewStartRequest,
+    db: AsyncSession = Depends(get_db),
+    _user: dict = Depends(get_current_user),
+):
     questions = await select_questions(request.session_type, db, count=8)
     if not questions:
         raise HTTPException(status_code=500, detail="No questions available — seed the question bank first")
@@ -68,6 +73,7 @@ async def submit_answer(
     request: AnswerRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
+    _user: dict = Depends(get_current_user),
 ):
     session_result = await db.execute(
         select(InterviewSessionORM).where(InterviewSessionORM.id == request.session_id)
@@ -107,7 +113,11 @@ async def submit_answer(
 
 
 @router.get("/evaluate/{session_id}")
-async def get_evaluation(session_id: str, db: AsyncSession = Depends(get_db)):
+async def get_evaluation(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    _user: dict = Depends(get_current_user),
+):
     session_result = await db.execute(
         select(InterviewSessionORM).where(InterviewSessionORM.id == session_id)
     )
@@ -150,7 +160,10 @@ async def get_evaluation(session_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/sessions")
-async def list_sessions(db: AsyncSession = Depends(get_db)):
+async def list_sessions(
+    db: AsyncSession = Depends(get_db),
+    _user: dict = Depends(get_current_user),
+):
     result = await db.execute(
         select(InterviewSessionORM).order_by(InterviewSessionORM.started_at.desc()).limit(20)
     )
