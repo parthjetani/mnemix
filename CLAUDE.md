@@ -40,15 +40,21 @@ real project stories. The answers sound like the user because they ARE the user.
 
 ## CURRENT BUILD PHASE
 
-**Phase:** v0.1 — Web UI + CLI, Supabase-backed, single user
+**Phase:** v0.1 — Web UI + CLI, Supabase-backed, multi-user
 **Goal:** Prove the core value: personal memory makes interview answers better
-**Status:** End-to-end flow working: ingest → interview → scored feedback report
+**Status:** End-to-end flow working. Sharing with friends.
+
+**What is complete:**
+- Full ingestion → memory → interview → feedback pipeline
+- Web UI (10 pages, Supabase magic link auth)
+- pgvector similarity search (HNSW index, process-stateless)
+- Multi-user data isolation (Supabase JWT + RLS on all tables)
+- Rate limiting, anonymisation, structured logging
 
 **What this phase is NOT:**
-- Not production ready
-- Not multi-user (user_profile is a single row)
+- Not production ready (single server, no horizontal scale)
 - Not deployed (runs locally on http://localhost:8000)
-- No Redis or complex infrastructure
+- No Redis, Celery, or billing
 
 ---
 
@@ -70,8 +76,8 @@ PROCESSING PIPELINE
         ↓
 PERSONAL MEMORY ENGINE
 ├── Embeddings (sentence-transformers, local, free)
-├── Storage (Supabase PostgreSQL — embeddings as BYTEA, future: pgvector)
-├── Retrieval (cosine similarity search)
+├── Storage (Supabase PostgreSQL — dual-write BYTEA + vector(384))
+├── Retrieval (pgvector <=> cosine distance, HNSW index, per-user scoped)
 └── Gap Detector (which interview categories are missing?)
         ↓
 INTERVIEW ENGINE
@@ -112,6 +118,10 @@ mnemix/
 │
 ├── core/
 │   ├── __init__.py
+│   ├── auth.py              ← Supabase JWT validation dependency
+│   ├── user_context.py      ← UserContext dataclass + get_user_context dependency
+│   ├── rate_limit.py        ← slowapi limiter (per-IP)
+│   ├── logging_config.py    ← structured JSON logging + Sentry hook
 │   ├── ingestion/
 │   │   ├── __init__.py
 │   │   ├── resume_parser.py     ← PyMuPDF PDF → structured JSON
@@ -127,9 +137,10 @@ mnemix/
 │   │
 │   ├── memory/
 │   │   ├── __init__.py
-│   │   ├── store.py             ← Save/retrieve memories from PostgreSQL
-│   │   ├── retriever.py         ← Semantic search against memories
-│   │   └── gap_detector.py      ← Find missing interview categories
+│   │   ├── store.py                  ← Save/retrieve memories from PostgreSQL
+│   │   ├── retriever.py              ← DEPRECATED (numpy, kept for rollback only)
+│   │   ├── retriever_pgvector.py     ← Active retriever — pgvector SQL search
+│   │   └── gap_detector.py           ← Find missing interview categories
 │   │
 │   └── interview/
 │       ├── __init__.py
@@ -144,13 +155,19 @@ mnemix/
 │
 ├── api/
 │   ├── __init__.py
-│   ├── ingest.py               ← POST /ingest/resume, /ingest/export
-│   ├── memory.py               ← GET /memory/profile, /memory/gaps
+│   ├── ingest.py               ← POST /ingest/resume, /ingest/ai-export
+│   ├── memory.py               ← GET /memory/profile, /memory/gaps, /memory/search
 │   ├── interview.py            ← POST /interview/start, /interview/answer
-│   └── transcript.py           ← POST /transcript/submit
+│   ├── profile.py              ← GET/PUT /profile
+│   └── chat.py                 ← POST /chat
 │
 ├── data/
 │   └── questions_seed.json     ← 50 pre-seeded interview questions
+│
+├── migrations/
+│   ├── 001_pgvector.sql        ← vector extension + embedding_vec + HNSW index
+│   ├── 002_rls.sql             ← Row Level Security on all tables
+│   └── 003_multiuser.sql       ← user_id on user_profile + tightened RLS policies
 │
 ├── frontend/                   ← Static web UI (served by FastAPI StaticFiles)
 │   ├── index.html              ← Public landing page
@@ -201,79 +218,66 @@ httpx            — async HTTP client
 
 ### AI Models (ALL via OpenAI-compatible SDK)
 
-**Task → Model → Provider → Cost/1M**
+**Task → Model → Provider**
 
 ```python
 # Classification (professional vs personal)
-# Rule-based Python first (free)
-# Groq for ambiguous cases only
-CLASSIFY:       groq/llama-3.1-8b-instant    $0.05/M    651 tok/s
+# Rule-based Python first (free). Groq only for ambiguous cases.
+CLASSIFY:       llama-3.3-70b-versatile    Groq (primary)
 
 # Memory extraction from conversation segments
-EXTRACT:        deepseek-v4-flash             $0.14/M    cache: $0.014/M
-                via DeepSeek API directly
+EXTRACT:        llama-3.3-70b-versatile    Groq
 
-# GitHub/code extraction
-CODE_EXTRACT:   deepseek-v4-flash             $0.14/M
-
-# User profile synthesis (one-time per user)
-PROFILE:        deepseek-v4-pro               $0.435/M   USE NOW (75% off until May 31)
+# User profile synthesis
+PROFILE:        llama-3.3-70b-versatile    Groq
 
 # Behavioral question generation
-Q_BEHAVIORAL:   groq/gpt-oss-20b              $0.13/M    886 tok/s FASTEST
+Q_BEHAVIORAL:   openai/gpt-oss-20b         Groq (OpenAI-compat model)
 
-# Technical question generation
-Q_TECHNICAL:    groq/qwen3-32b                $0.29/M    domain knowledge
+# Technical question generation (reasoning model — strips <think> blocks)
+Q_TECHNICAL:    qwen/qwen3-32b             Groq
 
 # Behavioral + coding answer evaluation
-EVAL:           deepseek-v4-pro               $0.435/M   reasoning quality
+EVAL:           llama-3.3-70b-versatile    Groq
 
 # System design evaluation (reasoning heavy)
-EVAL_SYSDESIGN: deepseek-r1                   $0.55/M    best reasoning
+EVAL_SYSDESIGN: qwen/qwen3-32b             Groq
 
-# Feedback report generation (user-facing, quality critical)
-FEEDBACK:       deepseek-v4-pro               $0.435/M   best writing
+# Feedback report generation (user-facing)
+FEEDBACK:       llama-3.3-70b-versatile    Groq
 
-# Gap analysis (strategic reasoning)
-GAP_ANALYSIS:   deepseek-r1                   $0.55/M
+# Gap analysis
+GAP_ANALYSIS:   qwen/qwen3-32b             Groq
 
-# Live interview assist (future — not in demo)
-LIVE_ASSIST:    groq/gpt-oss-20b              $0.13/M    886 tok/s
+# Fallback when Groq fails
+FALLBACK_REASONING: deepseek/deepseek-r1:free   OpenRouter
+FALLBACK_GENERAL:   meta-llama/llama-3.3-70b-instruct:free  OpenRouter
 
-# Embeddings — LOCAL, no API call needed
-EMBEDDINGS:     sentence-transformers         FREE       all-MiniLM-L6-v2
+# Embeddings — LOCAL, no API call
+EMBEDDINGS:     all-MiniLM-L6-v2           sentence-transformers (free)
 ```
 
 ### API Clients Setup
 
 ```python
-# Groq — using OpenAI SDK with different base_url
+# Groq — primary provider, OpenAI-compatible
 from openai import AsyncOpenAI
 groq_client = AsyncOpenAI(
     api_key=settings.GROQ_API_KEY,
-    base_url="https://api.groq.com/openai/v1"
+    base_url="https://api.groq.com/openai/v1",
 )
 
-# DeepSeek — using OpenAI SDK with different base_url
-deepseek_client = AsyncOpenAI(
-    api_key=settings.DEEPSEEK_API_KEY,
-    base_url="https://api.deepseek.com/v1"
-)
-
-# OpenRouter — fallback for everything
+# OpenRouter — fallback when Groq raises an error
 openrouter_client = AsyncOpenAI(
     api_key=settings.OPENROUTER_API_KEY,
-    base_url="https://openrouter.ai/api/v1"
+    base_url="https://openrouter.ai/api/v1",
 )
 ```
 
 ### Free Tier Status
 ```
-Groq:     No credit card needed. 14,400 req/day free. Permanent.
-DeepSeek: No credit card needed. 5M tokens free on signup. 30-day validity.
-          USE THESE FREE TOKENS NOW during demo build.
-          After 30 days: requires top-up payment.
-OpenRouter: Free tier for some models. Backup/fallback only.
+Groq:       No credit card needed. 14,400 req/day free. Permanent.
+OpenRouter: Free tier on :free models (50 req/day per model). Backup only.
 ```
 
 ---
@@ -281,86 +285,98 @@ OpenRouter: Free tier for some models. Backup/fallback only.
 ## DATABASE SCHEMA (Supabase PostgreSQL)
 
 ```sql
--- Supabase PostgreSQL — run `python database.py` to create tables
+-- Core tables created by `python database.py` (idempotent).
+-- Then apply migrations/ in order via Supabase SQL Editor:
+--   001_pgvector.sql → 002_rls.sql → 003_multiuser.sql
 
 CREATE TABLE IF NOT EXISTS memories (
-    id          TEXT PRIMARY KEY,
-    content     TEXT NOT NULL,
-    category    TEXT NOT NULL,
-    themes      TEXT,               -- JSON array stored as text
-    interview_qs TEXT,              -- JSON array stored as text
-    confidence  REAL DEFAULT 0.0,
-    source      TEXT,               -- resume/chatgpt/claude/manual
-    date_context TEXT,
-    has_outcome BOOLEAN DEFAULT FALSE,
+    id               TEXT PRIMARY KEY,
+    user_id          TEXT,                   -- Supabase user UUID (multi-user)
+    content          TEXT NOT NULL,
+    category         TEXT NOT NULL,
+    themes           TEXT,                   -- JSON array as text
+    interview_qs     TEXT,                   -- JSON array as text
+    confidence       REAL DEFAULT 0.0,
+    source           TEXT,                   -- resume/chatgpt/claude/manual
+    date_context     TEXT,
+    has_outcome      BOOLEAN DEFAULT FALSE,
     outcome_quantified BOOLEAN DEFAULT FALSE,
-    embedding   BYTEA,              -- numpy array serialized
-    created_at  TEXT DEFAULT (datetime('now')),
-    access_count INTEGER DEFAULT 0,
-    last_accessed TEXT
+    embedding        BYTEA,                  -- legacy numpy blob (kept for rollback)
+    embedding_vec    vector(384),            -- pgvector column (active retriever)
+    created_at       TEXT,
+    access_count     INTEGER DEFAULT 0,
+    last_accessed    TEXT
 );
 
 CREATE TABLE IF NOT EXISTS interview_sessions (
-    id          TEXT PRIMARY KEY,
-    started_at  TEXT DEFAULT (datetime('now')),
-    completed_at TEXT,
-    session_type TEXT,
-    overall_score REAL,
-    status      TEXT DEFAULT 'in_progress'
+    id              TEXT PRIMARY KEY,
+    user_id         TEXT,                   -- Supabase user UUID
+    started_at      TEXT,
+    completed_at    TEXT,
+    session_type    TEXT,
+    overall_score   REAL,
+    status          TEXT DEFAULT 'in_progress',
+    questions_list  TEXT,                   -- JSON array of {id,text,category}
+    feedback_report TEXT                    -- full LLM report text
 );
 
 CREATE TABLE IF NOT EXISTS session_answers (
-    id          TEXT PRIMARY KEY,
-    session_id  TEXT REFERENCES interview_sessions(id),
-    question_id TEXT,
-    question_text TEXT,
-    answer_text TEXT,
-    answer_order INTEGER,
-    memory_match_score REAL,
-    specificity_score REAL,
-    outcome_stated BOOLEAN DEFAULT FALSE,
-    outcome_quantified BOOLEAN DEFAULT FALSE,
-    memory_opportunity TEXT,
-    total_score REAL,
-    feedback_text TEXT,
-    created_at  TEXT DEFAULT (datetime('now'))
+    id                  TEXT PRIMARY KEY,
+    session_id          TEXT REFERENCES interview_sessions(id),
+    question_id         TEXT,
+    question_text       TEXT,
+    answer_text         TEXT,
+    answer_order        INTEGER,
+    memory_match_score  REAL,
+    specificity_score   REAL,
+    outcome_stated      BOOLEAN DEFAULT FALSE,
+    outcome_quantified  BOOLEAN DEFAULT FALSE,
+    coherence_score     REAL,
+    memory_opportunity  TEXT,
+    total_score         REAL,
+    feedback_text       TEXT,
+    created_at          TEXT
 );
 
 CREATE TABLE IF NOT EXISTS questions (
-    id          TEXT PRIMARY KEY,
-    text        TEXT NOT NULL,
-    category    TEXT,
-    field       TEXT,
-    seniority   TEXT,
-    source      TEXT DEFAULT 'seeded',
+    id                  TEXT PRIMARY KEY,
+    text                TEXT NOT NULL,
+    category            TEXT,
+    field               TEXT,
+    seniority           TEXT,
+    source              TEXT DEFAULT 'seeded',
     effectiveness_score REAL DEFAULT 0.5,
-    use_count   INTEGER DEFAULT 0,
-    created_at  TEXT DEFAULT (datetime('now'))
+    use_count           INTEGER DEFAULT 0,
+    created_at          TEXT
 );
 
 CREATE TABLE IF NOT EXISTS ingestion_jobs (
-    id          TEXT PRIMARY KEY,
-    source_type TEXT,
-    status      TEXT DEFAULT 'pending',
-    total_segments INTEGER DEFAULT 0,
-    processed   INTEGER DEFAULT 0,
-    memories_found INTEGER DEFAULT 0,
-    started_at  TEXT,
-    completed_at TEXT,
-    error_message TEXT
+    id              TEXT PRIMARY KEY,
+    user_id         TEXT,                   -- Supabase user UUID
+    source_type     TEXT,
+    status          TEXT DEFAULT 'pending',
+    progress        INTEGER DEFAULT 0,
+    total_segments  INTEGER DEFAULT 0,
+    processed       INTEGER DEFAULT 0,
+    memories_found  INTEGER DEFAULT 0,
+    created_at      TEXT,
+    started_at      TEXT,
+    completed_at    TEXT,
+    error_message   TEXT
 );
 
 CREATE TABLE IF NOT EXISTS user_profile (
-    id          INTEGER PRIMARY KEY DEFAULT 1,
-    field       TEXT DEFAULT 'software_engineering',
-    seniority   TEXT DEFAULT 'mid',
-    primary_stack TEXT,             -- JSON array
-    target_roles TEXT,              -- JSON array
-    communication_style TEXT,       -- JSON object
-    strength_areas TEXT,            -- JSON array
-    gap_areas TEXT,                 -- JSON array
+    id               INTEGER PRIMARY KEY,   -- auto-increment
+    user_id          TEXT UNIQUE,           -- Supabase user UUID (one row per user)
+    field            TEXT DEFAULT 'software_engineering',
+    seniority        TEXT DEFAULT 'mid',
+    primary_stack    TEXT,                  -- JSON array
+    target_roles     TEXT,                  -- JSON array
+    communication_style TEXT,              -- JSON object
+    strength_areas   TEXT,                  -- JSON array
+    gap_areas        TEXT,                  -- JSON array
     career_narrative TEXT,
-    last_updated TEXT DEFAULT (datetime('now'))
+    last_updated     TEXT
 );
 ```
 
@@ -709,41 +725,41 @@ These are non-negotiable. Follow them exactly:
 
 ## ENVIRONMENT VARIABLES
 
-`.env` file structure (all required):
+`.env` file structure:
 
 ```env
-# Groq (free, no credit card)
+# Groq — primary LLM provider (free, no credit card)
 GROQ_API_KEY=gsk_...
-GROQ_BASE_URL=https://api.groq.com/openai/v1
 
-# DeepSeek (5M free tokens, no credit card)
-DEEPSEEK_API_KEY=sk-...
-DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
-
-# OpenRouter (fallback)
+# OpenRouter — fallback provider (free tier)
 OPENROUTER_API_KEY=sk-or-...
-OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 
-# Models (do not change without updating router.py)
-MODEL_CLASSIFY=llama-3.1-8b-instant
-MODEL_EXTRACT=deepseek-v4-flash
-MODEL_PROFILE=deepseek-v4-pro
-MODEL_Q_BEHAVIORAL=gpt-oss-20b
-MODEL_Q_TECHNICAL=qwen3-32b
-MODEL_EVAL=deepseek-v4-pro
-MODEL_EVAL_SYSDESIGN=deepseek-r1
-MODEL_FEEDBACK=deepseek-v4-pro
-MODEL_GAP_ANALYSIS=deepseek-r1
+# Models (change via .env, not in code)
+MODEL_CLASSIFY=llama-3.3-70b-versatile
+MODEL_EXTRACT=llama-3.3-70b-versatile
+MODEL_PROFILE=llama-3.3-70b-versatile
+MODEL_Q_BEHAVIORAL=openai/gpt-oss-20b
+MODEL_Q_TECHNICAL=qwen/qwen3-32b
+MODEL_EVAL=llama-3.3-70b-versatile
+MODEL_EVAL_SYSDESIGN=qwen/qwen3-32b
+MODEL_FEEDBACK=llama-3.3-70b-versatile
+MODEL_GAP_ANALYSIS=qwen/qwen3-32b
+MODEL_FALLBACK_REASONING=deepseek/deepseek-r1:free
+MODEL_FALLBACK_GENERAL=meta-llama/llama-3.3-70b-instruct:free
 
-# Database (Supabase PostgreSQL — password URL-encoded)
-DATABASE_URL=postgresql+asyncpg://postgres:password@db.your-project.supabase.co:5432/postgres
+# Database (Supabase PostgreSQL — password URL-encoded, REQUIRED)
+DATABASE_URL=postgresql+asyncpg://postgres:YOUR-PASSWORD@db.YOUR-PROJECT.supabase.co:5432/postgres
+
+# Supabase (required for web UI auth)
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=eyJ...
 
 # Embeddings
 EMBEDDING_MODEL=all-MiniLM-L6-v2
 EMBEDDING_DIM=384
 
 # App settings
-DEBUG=true
+DEBUG=false
 LOG_LEVEL=INFO
 MAX_MEMORIES_PER_USER=500
 MIN_CONFIDENCE_THRESHOLD=0.65
@@ -778,7 +794,7 @@ Phase 2: Ingestion
 Phase 3: Memory
 ─────────────────────────────────────────────────
 13. core/memory/store.py
-14. core/memory/retriever.py
+14. core/memory/retriever_pgvector.py   ← active (retriever.py kept for rollback)
 15. core/memory/gap_detector.py
 
 Phase 4: Interview
@@ -794,34 +810,36 @@ Phase 5: Interface
 21. api/ingest.py
 22. api/memory.py
 23. api/interview.py
-24. main.py                ← FastAPI app wiring
-25. cli.py                 ← Typer terminal interface
+24. api/profile.py
+25. api/chat.py
+26. main.py                ← FastAPI app wiring
+27. cli.py                 ← Typer terminal interface
+28. frontend/              ← Static web UI (10 pages)
 
 Phase 6: Test
 ─────────────────────────────────────────────────
-26. End-to-end test: resume → memories → interview → feedback
+29. End-to-end test: resume → memories → interview → feedback
 ```
 
 ---
 
 ## DEPENDENCIES (requirements.txt)
 
+See `requirements.txt` for pinned versions. Key packages:
+
 ```
-fastapi==0.115.0
-uvicorn[standard]==0.32.0
-typer[all]==0.12.5
-rich==13.9.0
-pydantic==2.9.2
-python-dotenv==1.0.1
-sqlalchemy[asyncio]==2.0.36
-asyncpg==0.30.0
-pymupdf==1.24.13
-sentence-transformers==3.3.1
-openai==1.54.3
-httpx==0.27.2
-python-multipart==0.0.12
-tiktoken==0.8.0
-numpy==2.1.3
+fastapi, uvicorn[standard]     — async API + server
+typer[all], rich               — CLI
+pydantic, pydantic-settings    — validation + config
+sqlalchemy[asyncio], asyncpg   — async ORM + PostgreSQL driver
+pgvector                       — vector type for SQLAlchemy
+slowapi                        — rate limiting
+pymupdf                        — PDF parsing
+sentence-transformers          — local embeddings
+openai                         — OpenAI-compatible SDK (Groq + OpenRouter)
+httpx                          — async HTTP client (CLI + auth)
+python-multipart               — file upload parsing
+numpy                          — embedding math
 ```
 
 ---
@@ -858,9 +876,10 @@ Decision: Terminal first, UI second
 Reason:   Fastest path to testing core value. UI adds weeks, terminal adds days.
           FastAPI is API-first so UI can be added without changing backend.
 
-Decision: No authentication for demo
-Reason:   Single user (Parth). Adding auth adds a week of work for zero value.
-          Add Supabase Auth in v0.2 when sharing with friends.
+Decision: Supabase JWT auth + multi-user isolation
+Reason:   Sharing with friends required data isolation. get_user_context FastAPI
+          dependency validates JWT and threads user_id through every DB call.
+          RLS on all tables provides defence-in-depth via PostgREST as well.
 
 Decision: Anonymize before any LLM call
 Reason:   No PII in prompts. Reduces privacy risk to near zero.
@@ -890,9 +909,10 @@ Python 3.14.4:
 - Use asyncio.TaskGroup for parallel tasks (Python 3.11+)
 
 PostgreSQL / Supabase:
-- Embeddings stored as BYTEA (serialized numpy float32 array)
-- Similarity search uses in-memory numpy cosine — future: pgvector operators
+- Embeddings dual-written: BYTEA (legacy, rollback) + vector(384) (active, pgvector)
+- Similarity search: pgvector <=> cosine distance operator, HNSW index
 - SSL required; asyncpg connect_args uses ssl.CERT_NONE (Supabase self-signed CA)
+- RLS enabled on all 6 tables. Backend bypasses via postgres superuser connection.
 
 sentence-transformers first load:
 - Downloads model (~90MB) on first run
@@ -914,35 +934,30 @@ sentence-transformers first load:
 ❌ Never store PII (name, email, phone) in the database
 ❌ Never use string formatting for SQL queries
 ❌ Never add Redis/Celery (out of scope for v0.1)
-❌ Never store Supabase credentials in source code — use meta tags in HTML, .env for backend
+❌ Never store Supabase credentials in source code — use /config.js endpoint for frontend, .env for backend
 ```
 
 ---
 
 ## CURRENT SPRINT
 
-**Sprint: Demo v0.1**
-**Status: Starting**
-**First file to build: config.py**
+**Sprint: Friend Beta**
+**Status: Ready to share**
 
-Start here:
-```
-Build config.py → test it loads .env correctly
-Then database.py → test it creates all tables
-Then models/schemas.py → no testing needed, just schemas
-Then llm/router.py → test with a simple call to Groq
-```
+**Completed this sprint:**
+- pgvector similarity search (migrations/001_pgvector.sql applied)
+- Multi-user data isolation (JWT auth + RLS)
+- Security hardening (rate limiting, anonymisation, RLS policies)
+- Full doc update (all 11 docs/ files + README + CLAUDE.md)
 
-**Success criteria for demo:**
-1. Parth can run `python cli.py ingest --resume resume.pdf`
-   and see memories extracted to terminal
-2. Parth can run `python cli.py interview`
-   and complete a full 8-question session
-3. Feedback report is specific to his real projects (not generic)
-4. Total demo cost stays under ₹50
+**Next actions:**
+1. Parth ingests his real resume + ChatGPT/Claude exports
+2. Share with 2–3 friends for feedback on answer quality
+3. Tune extraction and evaluation prompts based on real data quality
+4. Decide on deployment (Render / Railway / fly.io) if sharing beyond local
 
 ---
 
-*MNEMIX CLAUDE.md — v1.0 — May 2026*
+*MNEMIX CLAUDE.md — v1.1 — May 2026*
 *This file is the single source of truth for Claude Code.*
 *Update this file when architectural decisions change.*

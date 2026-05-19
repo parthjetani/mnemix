@@ -77,7 +77,7 @@ copy .env.example .env
 | Embeddings | sentence-transformers `all-MiniLM-L6-v2` (local, free) |
 | LLM (primary) | Groq — `llama-3.3-70b-versatile`, `qwen3-32b`, `gpt-oss-20b` |
 | LLM (fallback) | OpenRouter free tier |
-| Similarity search | NumPy vectorized cosine similarity |
+| Similarity search | pgvector `<=>` cosine distance + HNSW index |
 
 All LLM calls go through a single router (`llm/router.py`). Embeddings run locally — no text is sent to external APIs for embedding.
 
@@ -128,6 +128,8 @@ Each interview answer is scored across five dimensions:
 
 ## Project Status
 
-v0.1 — web UI + CLI, single user, Supabase-backed. Full end-to-end flow: ingest → interview → scored feedback report.
+v0.1 — web UI + CLI, multi-user, Supabase-backed. Full end-to-end flow: ingest → interview → scored feedback report.
 
-Next: tune prompts based on real evaluation quality, add pgvector for similarity search, multi-user support.
+Completed: pgvector similarity search (HNSW index), multi-user data isolation (Supabase JWT + RLS), security hardening (rate limiting, anonymisation, RLS policies).
+
+Next: tune prompts based on real evaluation quality, share with friends for feedback.
