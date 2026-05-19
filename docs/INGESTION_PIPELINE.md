@@ -34,8 +34,8 @@ Store  (core/memory/store.py)
   → memories table in PostgreSQL
         │
         ▼
-Retriever index update  (core/memory/retriever.py)
-  → in-memory numpy matrix updated live
+Retriever index update  (core/memory/retriever_pgvector.py)
+  → no-op: pgvector reads directly from embedding_vec column
 ```
 
 ---
@@ -165,16 +165,17 @@ Ingestion is always triggered as a FastAPI `BackgroundTask`, so the HTTP respons
 
 ```python
 # api/ingest.py
-background_tasks.add_task(_run_resume_ingestion, job_id, temp_path)
+background_tasks.add_task(_run_resume_ingestion, job_id, temp_path, ctx.user_id)
 ```
 
-Background tasks create their own database session (using `async_session_factory`) because the request's `get_db()` session is closed by the time the background task runs.
+Background tasks receive `user_id` as an explicit string argument (FastAPI dependencies are not available in background tasks). They create their own database session using `async_session_factory` and pass `user_id` to every `save_memory()` call.
 
 ```python
-async def _run_resume_ingestion(job_id: str, file_path: Path) -> None:
+async def _run_resume_ingestion(job_id: str, file_path: Path, user_id: str) -> None:
     from database import async_session_factory
     async with async_session_factory() as db:
         # ... full pipeline ...
+        mid = await save_memory(mem, embedding, db, user_id=user_id)
         await db.commit()
 ```
 

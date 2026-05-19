@@ -43,10 +43,11 @@ One random question from any category, including identity categories (`value`, `
 
 ## Session Management (`core/interview/session.py`)
 
-### `create_session(session_type, questions, db) -> InterviewSession`
+### `create_session(session_type, questions, db, user_id="default") -> InterviewSession`
 
 Creates a new interview session and persists it:
 - Generates a UUID v4 session ID
+- Writes `user_id` on the row so the session is visible only to its owner
 - Serializes the ordered question list as JSON: `[{id, text, category}, ...]`
 - Sets `status="in_progress"`
 
@@ -80,18 +81,18 @@ Returns all answers for a session, ordered by `answer_order`.
 
 Scores all answers in a session using the LLM and the user's memories.
 
-### `evaluate_session(session_id, db) -> list[EvaluationResult]`
+### `evaluate_session(session_id, db, user_id=None) -> list[EvaluationResult]`
 
-1. Fetches the user profile (`id=1`) to get `field` and `seniority` for the evaluation context
+1. Fetches the user profile by `user_id` to get `field` and `seniority` for the evaluation context
 2. Fetches all session answers
 3. Evaluates all answers **in parallel** using `asyncio.gather()`
 4. Flushes score updates to the database
 
-### `_evaluate_single_answer(answer_orm, field, seniority, db) -> EvaluationResult`
+### `_evaluate_single_answer(answer_orm, field, seniority, db, user_id=None) -> EvaluationResult`
 
 For each answer:
 
-1. **Memory retrieval:** Embeds the answer text and calls `memory_retriever.search(answer_text, db, top_k=5)`
+1. **Memory retrieval:** Embeds the answer text and calls `memory_retriever.search(answer_text, db, top_k=5, user_id=user_id)` — scoped to the user's own memories
 2. **Task selection:** Uses `eval_sysdesign` task if the question ID contains `"sysdes"`, otherwise `eval`
 3. **LLM call:** Formats `EVALUATION_PROMPT` with the question, answer, and top-5 memories as JSON context
 4. **Score parsing:** Extracts `memory_match`, `specificity`, `outcome_stated`, `outcome_quantified`, `memory_opportunity_missed`, `coherence`, `specific_feedback`
@@ -117,10 +118,10 @@ Max raw score: 3 + 3 + 2 + 1 + 2 = 11 → normalized to 100.
 
 ## Feedback Generator (`core/interview/feedback.py`)
 
-### `generate_feedback(session_id, evaluations, db) -> FeedbackReport`
+### `generate_feedback(session_id, evaluations, db, user_id=None) -> FeedbackReport`
 
 1. Calculates `overall_score = mean([e.total_score for e in evaluations])`
-2. Fetches the user profile for context
+2. Fetches the user profile by `user_id` for context
 3. Serializes all evaluations (truncating answer text to 300 chars) into JSON
 4. Calls `FEEDBACK_PROMPT` with overall score, profile summary, and all evaluations
 5. Updates the session: sets `status="complete"`, `overall_score`, `feedback_report` (full text)
@@ -177,7 +178,7 @@ Focus questions: ...
 ```
 POST /interview/start
   └── select_questions()           — opener + gaps + type-specific + wildcard
-  └── create_session()             — status=in_progress, questions_list saved
+  └── create_session(..., user_id) — status=in_progress, questions_list + user_id saved
   └── get_next_question()          — returns first question
   └── Response: {session_id, total_questions, current_question}
 

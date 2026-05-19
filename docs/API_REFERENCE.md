@@ -2,6 +2,20 @@
 
 All endpoints are prefixed with `/api/v1`. The server runs on `http://localhost:8000` by default (uvicorn default port).
 
+## Authentication
+
+All endpoints except `GET /api/v1/health` require a Supabase JWT in the `Authorization` header:
+
+```
+Authorization: Bearer <supabase-access-token>
+```
+
+Without a valid token the server returns `401`. During local development with `DEBUG=true`, the token `dev-local` is accepted as a bypass:
+
+```
+Authorization: Bearer dev-local
+```
+
 ---
 
 ## Health
@@ -204,20 +218,25 @@ Semantic search over stored memories.
 | `q` | yes | — | Search query text |
 | `top_k` | no | 5 | Number of results to return |
 
-**Response `200`:**
+**Response `200`:** Array of results, sorted by descending similarity.
 ```json
-{
-  "results": [
-    {
-      "memory": {
-        "id": "...",
-        "content": "...",
-        "category": "technical_achievement"
-      },
-      "score": 0.823
-    }
-  ]
-}
+[
+  {
+    "memory": {
+      "id": "...",
+      "content": "...",
+      "category": "technical_achievement",
+      "themes": ["backend", "performance"],
+      "confidence": 0.9,
+      "has_outcome": true,
+      "outcome_quantified": false,
+      "source": "chatgpt",
+      "created_at": "2026-05-18T10:00:00+00:00",
+      "access_count": 3
+    },
+    "similarity": 0.823
+  }
+]
 ```
 
 ---

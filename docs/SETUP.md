@@ -125,6 +125,12 @@ Tables are created once against Supabase PostgreSQL. Run this before starting th
 # → Tables created successfully.
 ```
 
+Then apply the SQL migrations in the Supabase SQL Editor (Dashboard → SQL Editor):
+
+1. **`migrations/001_pgvector.sql`** — enables the `vector` extension, adds `embedding_vec` column, builds HNSW index. Requires the `vector` extension to be enabled first (Dashboard → Database → Extensions → toggle "vector").
+2. **`migrations/002_rls.sql`** — enables Row Level Security on all tables.
+3. **`migrations/003_multiuser.sql`** — adds `user_id` to `user_profile`, tightens RLS policies for per-user data isolation.
+
 ## Verifying the Setup
 
 ```powershell
@@ -154,7 +160,10 @@ TRUNCATE memories, interview_sessions, session_answers, ingestion_jobs, user_pro
 Run `pip install -r requirements.txt` inside the activated venv.
 
 **`ValidationError` on startup**
-Your `.env` is missing a required key. Check that `GROQ_API_KEY` and `OPENROUTER_API_KEY` are set.
+Your `.env` is missing a required key. Check that `GROQ_API_KEY`, `OPENROUTER_API_KEY`, and `DATABASE_URL` are all set.
+
+**CLI returns 401 Unauthorized**
+All API endpoints require a Supabase JWT. For local development, set `DEBUG=true` in `.env` and add the header `Authorization: Bearer dev-local` to your requests. The web UI handles auth automatically; the CLI does not yet pass auth headers.
 
 **CLI hangs during ingestion**
 Ingestion uses background tasks that make multiple LLM calls. A large ChatGPT export can take 2–5 minutes. The CLI polls for up to 10 minutes before timing out.

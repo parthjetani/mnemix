@@ -46,6 +46,15 @@ All models default to values optimized for the free tier. Change only if you hav
 |----------|---------|-------------|
 | `DATABASE_URL` | — | SQLAlchemy async connection string for Supabase PostgreSQL. **Required.** |
 
+## Supabase Auth (Required for web UI)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SUPABASE_URL` | `""` | Your Supabase project URL, e.g. `https://abcdefgh.supabase.co`. Required for the web UI; the server returns 503 on auth endpoints if unset. |
+| `SUPABASE_ANON_KEY` | `""` | Supabase anon (public) key. Served to the frontend via `GET /config.js`. |
+
+Both values are found at: Supabase Dashboard → Project Settings → API.
+
 Format: `postgresql+asyncpg://postgres:YOUR-PASSWORD@db.YOUR-PROJECT.supabase.co:5432/postgres`
 
 Special characters in the password must be URL-encoded (`#` → `%23`, `/` → `%2F`, `,` → `%2C`, `$` → `%24`).

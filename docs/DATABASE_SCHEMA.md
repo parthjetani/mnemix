@@ -13,7 +13,7 @@ Tables are created by running `python database.py` once before first server star
 | `SessionAnswerORM` | `session_answers` | One record per question-answer pair |
 | `QuestionORM` | `questions` | Seeded and learned interview questions |
 | `IngestionJobORM` | `ingestion_jobs` | Async ingestion job tracking |
-| `UserProfileORM` | `user_profile` | Single-row user profile |
+| `UserProfileORM` | `user_profile` | One row per user, keyed by `user_id` |
 
 ---
 
@@ -24,6 +24,7 @@ Stores extracted professional memories and their embeddings.
 | Column | Type | Default | Description |
 |--------|------|---------|-------------|
 | `id` | TEXT PK | — | UUID v4 string |
+| `user_id` | TEXT | NULL | Supabase user UUID. All queries filter by this. |
 | `content` | TEXT NOT NULL | — | One-sentence memory description (anonymized) |
 | `category` | TEXT NOT NULL | — | One of 19 memory categories (see below) |
 | `themes` | TEXT | — | JSON array of tag strings, e.g. `["backend", "performance"]` |
@@ -33,17 +34,15 @@ Stores extracted professional memories and their embeddings.
 | `date_context` | TEXT | NULL | Approximate date if mentioned in source |
 | `has_outcome` | INTEGER | 0 | Boolean (1/0): memory includes a described outcome |
 | `outcome_quantified` | INTEGER | 0 | Boolean (1/0): outcome includes numbers or metrics |
-| `embedding` | BLOB | NULL | numpy float32 array serialized via `.tobytes()` (384 floats = 1,536 bytes) |
+| `embedding` | BLOB | NULL | numpy float32 array serialized via `.tobytes()` — legacy, kept for rollback |
+| `embedding_vec` | vector(384) | NULL | pgvector column; used by similarity search. Backfilled from `embedding` by migration 001. |
 | `created_at` | TEXT | `datetime('now')` | ISO 8601 timestamp |
 | `access_count` | INTEGER | 0 | Times this memory was retrieved during answer evaluation |
 | `last_accessed` | TEXT | NULL | ISO 8601 timestamp of last retrieval |
 
-**Array columns** (`themes`, `interview_qs`) are stored as JSON strings (TEXT) for simplicity. Deserialize with `json.loads()`.
+**Array columns** (`themes`, `interview_qs`) are stored as JSON strings (TEXT). Deserialize with `json.loads()`.
 
-**Embedding** is stored as a raw BLOB. Deserialize with:
-```python
-np.frombuffer(row.embedding, dtype=np.float32)
-```
+**Similarity search** uses pgvector's HNSW index on `embedding_vec` via `<=>` cosine distance. See `migrations/001_pgvector.sql` and `core/memory/retriever_pgvector.py`.
 
 ---
 
@@ -54,6 +53,7 @@ One row per mock interview session.
 | Column | Type | Default | Description |
 |--------|------|---------|-------------|
 | `id` | TEXT PK | — | UUID v4 string |
+| `user_id` | TEXT | NULL | Supabase user UUID. Sessions only visible to their owner. |
 | `started_at` | TEXT | `datetime('now')` | ISO 8601 timestamp |
 | `completed_at` | TEXT | NULL | Set when last answer is submitted |
 | `session_type` | TEXT | — | `behavioral`, `technical`, or `mixed` |
@@ -127,6 +127,7 @@ Tracks async ingestion operations initiated via the API.
 | Column | Type | Default | Description |
 |--------|------|---------|-------------|
 | `id` | TEXT PK | — | UUID v4 string |
+| `user_id` | TEXT | NULL | Supabase user UUID. Jobs only visible to their owner. |
 | `source_type` | TEXT | — | `resume`, `chatgpt`, or `claude` |
 | `status` | TEXT | `pending` | `pending` → `processing` → `complete` / `failed` |
 | `total_segments` | INTEGER | 0 | Total segments found in the source |
@@ -142,11 +143,12 @@ Tracks async ingestion operations initiated via the API.
 
 ## `user_profile`
 
-Single-row table (id=1 always). Stores synthesized user profile.
+One row per user. Created lazily on first sign-in by `get_or_create_user_profile_orm()`.
 
 | Column | Type | Default | Description |
 |--------|------|---------|-------------|
-| `id` | INTEGER PK | 1 | Always 1 — enforces single-user constraint |
+| `id` | INTEGER PK | auto | Auto-increment primary key |
+| `user_id` | TEXT UNIQUE | — | Supabase user UUID. Used for all lookups. |
 | `field` | TEXT | `software_engineering` | Professional domain |
 | `seniority` | TEXT | `mid` | Career level: `junior`, `mid`, `senior` |
 | `primary_stack` | TEXT | NULL | JSON array of technology strings |

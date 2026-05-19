@@ -12,7 +12,7 @@ The web UI is a static frontend served by FastAPI from the `frontend/` directory
 | Auth | Supabase JS 2.x (CDN) |
 | Charts | Chart.js (CDN, dashboard + history only) |
 | Icons | Lucide (CDN) |
-| Fonts | DM Sans (body), Geist Mono (code/numbers) |
+| Fonts | Fraunces (display/headings), Instrument Sans (body), JetBrains Mono (code/labels) |
 | Styling | 3 custom CSS files (no framework) |
 | JS modules | 4 app scripts (no bundler) |
 
@@ -311,15 +311,25 @@ This means:
 
 ## Supabase Configuration
 
-Each HTML page that requires auth includes two `<meta>` tags:
+Supabase credentials are served to the frontend by the backend via a single endpoint:
 
-```html
-<meta name="supabase-url" content="https://your-project.supabase.co">
-<meta name="supabase-anon-key" content="eyJ...">
+```
+GET /config.js
 ```
 
-`auth.js` reads these tags to initialize the Supabase client. To deploy to a different Supabase project, update these tags in every HTML file (or template them via a build step).
+This returns a JavaScript snippet that sets `window.MNEMIX_CONFIG`:
 
-The Supabase project must have **Email → Magic Link** enabled under Authentication → Providers.
+```js
+window.MNEMIX_CONFIG = {
+  "supabase": {
+    "url": "https://your-project.supabase.co",
+    "anonKey": "eyJ..."
+  }
+};
+```
 
-The redirect URL `{origin}/auth/callback.html` must be added to Supabase → Authentication → URL Configuration → Redirect URLs.
+Set `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `.env`. All HTML pages load `/config.js` via a `<script>` tag and fall back to legacy `<meta>` tags if `MNEMIX_CONFIG` is not present.
+
+**Supabase project setup required:**
+- Authentication → Providers → Email → enable **Magic Links**
+- Authentication → URL Configuration → add `{origin}/auth/callback.html` to Redirect URLs

@@ -24,9 +24,9 @@ PROCESSING PIPELINE (core/processing/)
          │
          ▼
 PERSONAL MEMORY ENGINE (core/memory/)
-├── store.py        — save/retrieve memories from PostgreSQL
-├── retriever.py    — in-memory cosine similarity search
-└── gap_detector.py — identify missing interview categories
+├── store.py               — save/retrieve memories from PostgreSQL
+├── retriever_pgvector.py  — pgvector SQL cosine similarity search
+└── gap_detector.py        — identify missing interview categories
          │
          ▼
 INTERVIEW ENGINE (core/interview/)
@@ -49,9 +49,9 @@ INTERFACE LAYER
 
 **Local embeddings.** sentence-transformers (`all-MiniLM-L6-v2`) runs locally. No embedding API calls, no latency, no cost. Embeddings are cached in memory by text content.
 
-**Supabase PostgreSQL.** All data persists in Supabase. The ORM uses SQLAlchemy async with asyncpg. Embeddings are stored as `BYTEA` columns and searched with in-memory numpy cosine similarity (future: replace with pgvector operators).
+**Supabase PostgreSQL.** All data persists in Supabase. The ORM uses SQLAlchemy async with asyncpg. Embeddings are stored as both a `BYTEA` legacy column and a `vector(384)` pgvector column. Similarity search uses pgvector's `<=>` cosine distance operator with an HNSW index.
 
-**Single-user model.** No authentication. `user_profile` table has a single row with `id=1`. All memories, sessions, and jobs belong to the one user running the system.
+**Multi-user model.** Authentication uses Supabase JWT (magic link). The `get_user_context` FastAPI dependency validates the token and returns a `UserContext(user_id=...)`. Every DB read and write is filtered by `user_id`. RLS policies on all tables enforce ownership at the Postgres level as well.
 
 ## Data Flow: Ingestion
 
@@ -106,9 +106,11 @@ cli.py
   └── httpx → FastAPI (api/)
 
 api/
-  ├── ingest.py → core/ingestion/, core/processing/, core/memory/
-  ├── memory.py → core/memory/
-  └── interview.py → core/interview/
+  ├── ingest.py   → core/ingestion/, core/processing/, core/memory/, core/user_context
+  ├── memory.py   → core/memory/, core/user_context
+  ├── interview.py→ core/interview/, core/user_context
+  ├── profile.py  → core/user_context
+  └── chat.py     → core/memory/, core/user_context
 
 core/ (never imports from api/ or cli/)
   ├── ingestion/ → llm/router.py, llm/prompts.py

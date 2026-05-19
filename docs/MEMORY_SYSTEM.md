@@ -6,7 +6,7 @@ The memory system stores, retrieves, and analyzes the professional memories extr
 
 Handles persistence of `MemoryCreate` objects to PostgreSQL.
 
-### `save_memory(memory, embedding, db) -> str`
+### `save_memory(memory, embedding, db, user_id="default") -> str`
 
 Saves a single memory to the database.
 
@@ -26,29 +26,22 @@ memory = MemoryCreate(
     outcome_quantified=True,
 )
 embedding = embed(memory.content)
-memory_id = await save_memory(memory, embedding, db)
+memory_id = await save_memory(memory, embedding, db, user_id=ctx.user_id)
 ```
 
 - Generates a UUID v4 for `id`
-- Serializes the embedding: `embedding.tobytes()` → BLOB
+- Writes `user_id` on the row for per-user isolation
+- Dual-writes the embedding: `embedding.tobytes()` → `embedding` (BLOB, legacy) and `embedding.tolist()` → `embedding_vec` (vector(384), pgvector)
 - Serializes list fields: `json.dumps(memory.themes)` → TEXT
 - Returns the new memory's ID
 
-### `get_all_memories(db) -> list[tuple[Memory, np.ndarray]]`
+### `get_all_memories(db, user_id=None) -> list[tuple[Memory, np.ndarray]]`
 
-Returns all memories with their deserialized embeddings.
+Returns memories with their deserialized embeddings. Filters by `user_id` when provided.
 
-```python
-memories_with_embeddings = await get_all_memories(db)
-for memory, embedding in memories_with_embeddings:
-    print(memory.content, embedding.shape)  # → (384,)
-```
+### `count_memories_by_category(db, user_id=None) -> dict[str, int]`
 
-Embedding deserialization: `np.frombuffer(row.embedding, dtype=np.float32)`
-
-### `count_memories_by_category(db) -> dict[str, int]`
-
-Returns a dict mapping category name to count. Used by the gap detector and profile endpoint.
+Returns a dict mapping category name to count, filtered by `user_id`. Used by the gap detector and profile endpoint.
 
 ### `get_memory_by_id(memory_id, db) -> Memory | None`
 
@@ -58,59 +51,36 @@ Updates `access_count` and `last_accessed` on a memory. Called every time a memo
 
 ---
 
-## Memory Retriever (`core/memory/retriever.py`)
+## Memory Retriever (`core/memory/retriever_pgvector.py`)
 
-In-memory semantic search using numpy vectorized cosine similarity. Much faster than SQLite queries for similarity search.
+pgvector-backed semantic search using PostgreSQL's `<=>` cosine distance operator and an HNSW index. Process-stateless — multiple uvicorn workers behave correctly.
 
-### Architecture
+### `search(query_text, db, top_k=5, user_id=None) -> list[tuple[Memory, float]]`
 
-```python
-class MemoryRetriever:
-    _embeddings: np.ndarray | None  # shape (N, 384) — matrix of all memory embeddings
-    _memory_ids: list[str]          # memory IDs in the same order as rows in _embeddings
-    _loaded: bool
-```
-
-The matrix is loaded from the database on first `search()` call (or explicitly by calling `load()`). After that, searches are pure numpy operations — no database round-trips.
-
-### `load(db)`
-
-Fetches all memories from the database, stacks their embeddings into a `(N, 384)` matrix:
+Semantic search scoped to the given user.
 
 ```python
-await memory_retriever.load(db)
-```
-
-Called in `main.py` startup lifespan to warm the index before any requests. Also called lazily on the first `search()` if not yet loaded.
-
-### `search(query_text, db, top_k=5) -> list[tuple[Memory, float]]`
-
-Semantic search against all stored memories.
-
-```python
-results = await memory_retriever.search("technical challenge under pressure", db, top_k=5)
+results = await memory_retriever.search(
+    "technical challenge under pressure", db, top_k=5, user_id=ctx.user_id
+)
 for memory, score in results:
     print(f"{score:.3f}  {memory.content}")
 ```
 
 **Algorithm:**
-1. `query_vec = embed(query_text)` — 384-dim vector
-2. `similarities = _embeddings @ query_vec / (norms * query_norm + 1e-10)` — vectorized dot product over all memories in one numpy operation
-3. `top_indices = np.argsort(similarities)[::-1][:top_k]`
-4. Fetch the Memory objects from the database by ID
-5. Return `[(Memory, similarity_score), ...]` sorted by descending similarity
+1. `query_vec = embed(query_text)` — 384-dim float32 vector
+2. SQL: `ORDER BY embedding_vec <=> :query_vec ASC WHERE user_id = :uid LIMIT :k` — HNSW index returns the k nearest rows by cosine distance
+3. `similarity = 1 - cosine_distance` — converted so higher is better
+4. IDs + similarities fetched; `get_memories_by_ids()` materialises the full Memory objects in one batch query
+5. Returns `[(Memory, similarity), ...]` in descending similarity order
 
-Similarity scores are cosine similarities in `[-1.0, 1.0]`. In practice, relevant memories score above 0.5.
+### `add_to_index(memory_id, embedding)` — no-op
 
-### `add_to_index(memory_id, embedding)`
+pgvector search reads directly from the `embedding_vec` column written by `save_memory()`. There is no in-memory index to update. The call site signature is preserved so call sites don't need changes.
 
-Adds a new memory to the in-memory index without requiring a full reload:
+### `load(db)` — no-op
 
-```python
-await memory_retriever.add_to_index(memory_id, new_embedding)
-```
-
-Called immediately after `save_memory()` during ingestion so new memories are searchable in the same session.
+No warm-up index to populate. Removed from `main.py` startup lifespan.
 
 ---
 
@@ -138,9 +108,9 @@ Analyzes which interview categories have insufficient memory coverage.
 | `strength` | 2 | medium |
 | `value` | 1 | low |
 
-### `detect_gaps(db) -> list[dict]`
+### `detect_gaps(db, user_id=None) -> list[dict]`
 
-Returns a list of gap dicts for categories below minimum, sorted by priority then deficit:
+Returns a list of gap dicts for categories below minimum, scoped to the given user, sorted by priority then deficit:
 
 ```json
 [
@@ -157,7 +127,7 @@ Returns a list of gap dicts for categories below minimum, sorted by priority the
 
 For `high` priority gaps, `detect_gaps()` calls `GAP_ANALYSIS_PROMPT` to generate suggested fill questions. Medium and low priority gaps return without suggested questions (saves LLM calls).
 
-### `get_gap_summary(db) -> str`
+### `get_gap_summary(db, user_id=None) -> str`
 
 Returns a formatted text summary suitable for terminal display. Used internally — the CLI uses the raw gap list from `detect_gaps()` to build its own Rich table.
 
