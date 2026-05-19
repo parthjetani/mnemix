@@ -4,9 +4,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from config import settings
+from core.rate_limit import limiter
 from database import init_db, get_db
 from llm.embeddings import embed
 from core.interview.question_bank import load_questions
@@ -37,6 +41,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
 app.include_router(ingest_router, prefix="/api/v1")
 app.include_router(memory_router, prefix="/api/v1")
 app.include_router(interview_router, prefix="/api/v1")
@@ -47,6 +55,28 @@ app.include_router(chat_router, prefix="/api/v1")
 @app.get("/api/v1/health")
 async def health():
     return {"status": "ok", "version": "0.1.0"}
+
+
+@app.get("/config.js")
+async def frontend_config():
+    """Server-rendered frontend config so Supabase URL/anon-key live in one place,
+    not duplicated across every HTML file."""
+    body = (
+        "window.MNEMIX_CONFIG = "
+        + _json_encode({
+            "supabase": {
+                "url": settings.SUPABASE_URL,
+                "anonKey": settings.SUPABASE_ANON_KEY,
+            },
+        })
+        + ";\n"
+    )
+    return Response(content=body, media_type="application/javascript")
+
+
+def _json_encode(obj):
+    import json
+    return json.dumps(obj)
 
 
 # Serve frontend — must be after all API routes

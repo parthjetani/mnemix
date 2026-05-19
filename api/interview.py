@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 from database import InterviewSessionORM, get_db
 from core.auth import get_current_user
+from core.rate_limit import limiter
 from core.interview.question_bank import select_questions
 from core.interview.session import (
     create_session,
@@ -55,22 +56,24 @@ async def _run_evaluation(session_id: str) -> None:
 
 
 @router.post("/start")
+@limiter.limit("20/hour")
 async def start_interview(
-    request: InterviewStartRequest,
+    request: Request,
+    body: InterviewStartRequest,
     db: AsyncSession = Depends(get_db),
     _user: dict = Depends(get_current_user),
 ):
-    questions = await select_questions(request.session_type, db, count=8)
+    questions = await select_questions(body.session_type, db, count=8)
     if not questions:
         raise HTTPException(status_code=500, detail="No questions available — seed the question bank first")
 
-    session = await create_session(request.session_type, questions, db)
+    session = await create_session(body.session_type, questions, db)
 
     next_q = await get_next_question(session.id, db)
 
     return {
         "session_id": session.id,
-        "session_type": request.session_type,
+        "session_type": body.session_type,
         "total_questions": len(questions),
         "questions": [q.model_dump() for q in questions],
         "current_question": next_q,

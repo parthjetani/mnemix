@@ -1,15 +1,15 @@
 import asyncio
 import json
 import logging
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database import SessionAnswerORM, UserProfileORM
+from database import SessionAnswerORM
 from llm.router import llm_router, LLMError
 from llm.prompts import EVALUATION_PROMPT
 from llm.embeddings import embed
 from core.memory.retriever import memory_retriever
 from core.memory.store import increment_access_count
+from core.user_context import default_user_context, get_user_profile_orm
 from models.schemas import EvaluationResult
 
 logger = logging.getLogger(__name__)
@@ -105,8 +105,7 @@ async def evaluate_session(
     from core.interview.session import get_session_answers
 
     # Try to get field/seniority from user profile
-    profile_result = await db.execute(select(UserProfileORM).where(UserProfileORM.id == 1))
-    profile = profile_result.scalar_one_or_none()
+    profile = await get_user_profile_orm(default_user_context(), db)
     if profile:
         field = profile.field or field
         seniority = profile.seniority or seniority

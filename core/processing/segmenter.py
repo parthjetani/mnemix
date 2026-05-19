@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, timezone
 
-from llm.embeddings import cosine_similarity, embed
+from llm.embeddings import aembed, cosine_similarity
 
 _TOPIC_CHANGE_RE = re.compile(
     r'^(different question|anyway[,.]|moving on|on a separate|changing topic|by the way|'
@@ -28,7 +28,7 @@ def _word_count(messages: list[str]) -> int:
     return sum(len(m.split()) for m in messages)
 
 
-def _split_by_topic(messages: list[str]) -> list[list[str]]:
+async def _split_by_topic(messages: list[str]) -> list[list[str]]:
     """Split a message list into sub-groups using embedding distance."""
     if len(messages) < 3:
         return [messages]
@@ -37,8 +37,8 @@ def _split_by_topic(messages: list[str]) -> list[list[str]]:
     for msg in messages[1:]:
         prev_text = groups[-1][-1]
         try:
-            # embed() is synchronous CPU-bound — blocks event loop; acceptable for single-user demo
-            sim = cosine_similarity(embed(prev_text[-200:]), embed(msg[:200]))
+            prev_vec, msg_vec = await aembed(prev_text[-200:]), await aembed(msg[:200])
+            sim = cosine_similarity(prev_vec, msg_vec)
             distance = 1.0 - sim
         except Exception:
             distance = 0.0
@@ -76,7 +76,7 @@ async def segment(raw_segments: list[dict]) -> list[dict]:
         embed_groups: list[list[str]] = []
         for group in phrase_groups:
             if len(group) >= MIN_MESSAGES_FOR_EMBED_SPLIT:
-                sub = _split_by_topic(group)
+                sub = await _split_by_topic(group)
                 # Only keep the split if all resulting sub-groups meet minimum word count
                 if all(_word_count(s) >= MIN_WORDS for s in sub):
                     embed_groups.extend(sub)

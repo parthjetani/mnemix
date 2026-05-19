@@ -1,20 +1,28 @@
 // Auth — Supabase magic link, JWT from session
-// Keys injected via <meta name="supabase-url"> and <meta name="supabase-anon-key">
+// Config served from /config.js (window.MNEMIX_CONFIG), with legacy <meta> fallback.
 
 const _DEV_TOKEN = 'dev-local';
 const _DEV_SESSION = { access_token: _DEV_TOKEN, user: { id: 'dev-user', email: 'dev@localhost' } };
 
 let _supabase = null;
 
-function _getSupabase() {
-  if (_supabase) return _supabase;
+function _getSupabaseConfig() {
+  const cfg = (window.MNEMIX_CONFIG && window.MNEMIX_CONFIG.supabase) || {};
+  if (cfg.url && cfg.anonKey) return { url: cfg.url, anonKey: cfg.anonKey };
   const urlMeta = document.querySelector('meta[name="supabase-url"]');
   const keyMeta = document.querySelector('meta[name="supabase-anon-key"]');
-  if (!urlMeta || !keyMeta || !window.supabase) {
-    console.error('Supabase meta tags or CDN missing');
+  if (urlMeta && keyMeta) return { url: urlMeta.content, anonKey: keyMeta.content };
+  return null;
+}
+
+function _getSupabase() {
+  if (_supabase) return _supabase;
+  const cfg = _getSupabaseConfig();
+  if (!cfg || !window.supabase) {
+    console.error('Supabase config missing — load /config.js or set meta tags');
     return null;
   }
-  _supabase = window.supabase.createClient(urlMeta.content, keyMeta.content);
+  _supabase = window.supabase.createClient(cfg.url, cfg.anonKey);
   return _supabase;
 }
 

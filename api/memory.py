@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database import MemoryORM, UserProfileORM, get_db
+from database import MemoryORM, get_db
 from core.auth import get_current_user
+from core.user_context import default_user_context, get_user_profile_orm
 from llm.embeddings import embed
 from core.memory.store import save_memory, count_memories_by_category
 from core.memory.retriever import memory_retriever
@@ -36,8 +37,7 @@ async def get_memory_profile(
         for m in top_memories_orm
     ]
 
-    profile_result = await db.execute(select(UserProfileORM).where(UserProfileORM.id == 1))
-    profile = profile_result.scalar_one_or_none()
+    profile = await get_user_profile_orm(default_user_context(), db)
     profile_data = None
     if profile:
         profile_data = {

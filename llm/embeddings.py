@@ -1,3 +1,4 @@
+import asyncio
 import numpy as np
 from config import settings
 
@@ -46,3 +47,15 @@ def embed_batch(texts: list[str]) -> list[np.ndarray]:
 
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-10))
+
+
+async def aembed(text: str) -> np.ndarray:
+    """Async wrapper: offloads CPU-bound embed() to a thread so it doesn't block the event loop."""
+    if text in _cache:
+        return _cache[text]
+    return await asyncio.get_running_loop().run_in_executor(None, embed, text)
+
+
+async def aembed_batch(texts: list[str]) -> list[np.ndarray]:
+    """Async wrapper for embed_batch — offloaded to a thread."""
+    return await asyncio.get_running_loop().run_in_executor(None, embed_batch, texts)

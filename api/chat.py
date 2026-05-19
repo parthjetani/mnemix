@@ -1,12 +1,13 @@
 import json
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from core.auth import get_current_user
 from core.memory.retriever import memory_retriever
+from core.rate_limit import limiter
 from llm.router import llm_router, LLMError
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,9 @@ CHAT_SYSTEM = (
 
 
 @router.post("", response_model=ChatResponse)
+@limiter.limit("30/minute")
 async def chat(
+    request: Request,
     req: ChatRequest,
     db: AsyncSession = Depends(get_db),
     _user: dict = Depends(get_current_user),

@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime, timezone
 
 import numpy as np
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
@@ -74,12 +74,24 @@ async def get_memory_by_id(
 
 
 async def count_memories_by_category(db: AsyncSession) -> dict[str, int]:
-    result = await db.execute(select(MemoryORM))
-    rows = result.scalars().all()
-    counts: dict[str, int] = {}
-    for row in rows:
-        counts[row.category] = counts.get(row.category, 0) + 1
-    return counts
+    result = await db.execute(
+        select(MemoryORM.category, func.count(MemoryORM.id))
+        .group_by(MemoryORM.category)
+    )
+    return {row[0]: row[1] for row in result.all()}
+
+
+async def get_memories_by_ids(
+    memory_ids: list[str],
+    db: AsyncSession,
+) -> dict[str, MemorySchema]:
+    """Batch fetch — one query instead of N. Returns id -> schema map."""
+    if not memory_ids:
+        return {}
+    result = await db.execute(
+        select(MemoryORM).where(MemoryORM.id.in_(memory_ids))
+    )
+    return {row.id: _orm_to_schema(row) for row in result.scalars().all()}
 
 
 async def increment_access_count(memory_id: str, db: AsyncSession) -> None:

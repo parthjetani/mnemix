@@ -1,11 +1,12 @@
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import IngestionJobORM, get_db
 from core.auth import get_current_user
+from core.rate_limit import limiter
 from llm.embeddings import embed
 from core.ingestion.resume_parser import parse_resume
 from core.ingestion.chatgpt_parser import parse_chatgpt_export
@@ -134,7 +135,9 @@ async def _run_ai_export_ingestion(job_id: str, temp_path: Path, source_type: st
 
 
 @router.post("/resume", response_model=IngestResponse)
+@limiter.limit("10/hour")
 async def ingest_resume(
+    request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
@@ -171,7 +174,9 @@ async def ingest_resume(
 
 
 @router.post("/ai-export", response_model=IngestResponse)
+@limiter.limit("5/hour")
 async def ingest_ai_export(
+    request: Request,
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     source_type: str = Form(...),
