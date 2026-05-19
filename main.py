@@ -10,8 +10,12 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from config import settings
+from core.logging_config import configure_logging, configure_sentry
 from core.rate_limit import limiter
 from database import init_db, get_db
+
+configure_logging(settings.LOG_LEVEL)
+configure_sentry()
 from llm.embeddings import embed
 from core.interview.question_bank import load_questions
 from core.memory.retriever import memory_retriever

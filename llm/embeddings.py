@@ -3,6 +3,8 @@ import numpy as np
 from config import settings
 
 _model = None
+# Per-process embedding cache. Each uvicorn worker holds its own dict, which is
+# why we recommend single-worker until pgvector lands (see core/memory/retriever).
 _cache: dict[str, np.ndarray] = {}
 
 

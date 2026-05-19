@@ -5,6 +5,12 @@ from pathlib import Path
 
 from core.processing.anonymize import anonymize, check_zip_size
 
+# Cap on conversations we process per export. Multi-year exports can contain
+# 5–10k conversations; running each through embed + classify + extract would
+# burn through the Groq 14.4k req/day free tier and take hours. The cap is on
+# most-recent-first slice (sorted by create_time desc).
+MAX_CONVERSATIONS_PER_EXPORT = 1000
+
 
 def _timestamp_to_iso(ts) -> str | None:
     if ts is None:
@@ -89,5 +95,11 @@ async def parse_chatgpt_export(file_path: Path) -> list[dict]:
 
     if not isinstance(data, list):
         raise ValueError("conversations.json must be a JSON array of conversations")
+
+    # Cap to the most recent N conversations (by create_time) so the extraction
+    # pipeline doesn't run for hours / blow the API rate limit on multi-year exports.
+    if len(data) > MAX_CONVERSATIONS_PER_EXPORT:
+        data = sorted(data, key=lambda c: c.get("create_time") or 0, reverse=True)
+        data = data[:MAX_CONVERSATIONS_PER_EXPORT]
 
     return _parse_conversations(data)

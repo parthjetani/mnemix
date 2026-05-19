@@ -5,6 +5,9 @@ from pathlib import Path
 
 from core.processing.anonymize import anonymize, check_zip_size
 
+# See chatgpt_parser.MAX_CONVERSATIONS_PER_EXPORT — same rationale.
+MAX_CONVERSATIONS_PER_EXPORT = 1000
+
 # Match [Human] turns — handles both \n\n[Human]\n and \n\nHuman: formats
 _HUMAN_SPLIT_RE = re.compile(
     r'\n{1,2}(?:\[Human\]|Human:)\s*',
@@ -40,6 +43,14 @@ def _parse_markdown_file(name: str, content: str) -> dict | None:
 
 
 def _parse_conversations_json(data: list) -> list[dict]:
+    # Cap to most recent N conversations so multi-year exports don't blow the rate limit.
+    if len(data) > MAX_CONVERSATIONS_PER_EXPORT:
+        data = sorted(
+            data,
+            key=lambda c: c.get("created_at") if isinstance(c, dict) else "",
+            reverse=True,
+        )
+        data = data[:MAX_CONVERSATIONS_PER_EXPORT]
     segments = []
     for conv in data:
         if not isinstance(conv, dict):
