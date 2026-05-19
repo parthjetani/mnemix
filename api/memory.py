@@ -1,3 +1,6 @@
+import json
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -76,7 +79,6 @@ async def add_memory(
     if not orm:
         raise HTTPException(status_code=500, detail="Memory save failed")
 
-    import json
     return Memory(
         id=orm.id,
         content=orm.content,
@@ -107,4 +109,38 @@ async def search_memories(
     return [
         {"memory": mem.model_dump(exclude={"embedding"}), "similarity": round(score, 4)}
         for mem, score in results
+    ]
+
+
+@router.get("/list")
+async def list_memories(
+    category: Optional[str] = None,
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+    _user: dict = Depends(get_current_user),
+):
+    stmt = select(MemoryORM).order_by(MemoryORM.created_at.desc()).limit(min(limit, 200))
+    if category:
+        stmt = (
+            select(MemoryORM)
+            .where(MemoryORM.category == category)
+            .order_by(MemoryORM.created_at.desc())
+            .limit(min(limit, 200))
+        )
+    result = await db.execute(stmt)
+    rows = result.scalars().all()
+    return [
+        {
+            "id": m.id,
+            "content": m.content,
+            "category": m.category,
+            "themes": json.loads(m.themes) if m.themes else [],
+            "confidence": m.confidence or 0.0,
+            "source": m.source or "manual",
+            "has_outcome": m.has_outcome or False,
+            "outcome_quantified": m.outcome_quantified or False,
+            "created_at": m.created_at or "",
+            "access_count": m.access_count or 0,
+        }
+        for m in rows
     ]

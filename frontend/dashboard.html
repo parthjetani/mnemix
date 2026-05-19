@@ -260,10 +260,7 @@
         return Math.round(r.reduce((a,s) => a + s.overall_score, 0) / r.length);
       },
       get recentSessions() { return this.sessions.slice(0, 3); },
-      get topMemories() {
-        const all = Object.values(this.profile?.memories_by_category || {}).flat();
-        return all.sort((a,b) => (b.access_count||0)-(a.access_count||0)).slice(0,3);
-      },
+      get topMemories() { return (this.profile?.top_memories || []).slice(0, 3); },
 
       async init() {
         await this._init();
@@ -285,7 +282,7 @@
       renderChart() {
         const canvas = document.getElementById('coverageChart');
         if (!canvas || !this.gaps) return;
-        const cats    = Object.keys(this.profile?.memories_by_category || {});
+        const cats    = Object.keys(this.profile?.by_category || {});
         const covered = cats.filter(c => !this.gaps.find(g => g.category === c)).length;
         const partial = this.gaps.filter(g => g.have > 0).length;
         const missing = this.gaps.filter(g => g.have === 0).length;

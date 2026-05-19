@@ -59,6 +59,13 @@ const API = {
   async getProfile()         { return this.get('/memory/profile'); },
   async getGaps()            { return this.get('/memory/gaps'); },
   async searchMemories(q, k) { return this.get(`/memory/search?q=${encodeURIComponent(q)}&top_k=${k || 5}`); },
+  async listMemories(category, limit) {
+    const params = new URLSearchParams();
+    if (category) params.set('category', category);
+    if (limit) params.set('limit', limit);
+    const qs = params.toString();
+    return this.get(`/memory/list${qs ? '?' + qs : ''}`);
+  },
   async addMemory(data)      { return this.post('/memory/add', data); },
 
   // ── Profile ───────────────────────────────────────────────

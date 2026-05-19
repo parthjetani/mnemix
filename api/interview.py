@@ -156,6 +156,8 @@ async def get_evaluation(
         overall_score=session.overall_score or 0.0,
         report_text=session.feedback_report or "",
         evaluations=evaluations,
+        session_type=session.session_type,
+        started_at=session.started_at,
     )
 
 

@@ -408,10 +408,10 @@
       },
 
       buildCategories() {
-        const byCat = this.profile?.memories_by_category || {};
+        const byCat = this.profile?.by_category || {};
         this.categories = Object.keys(this.requiredCategories).map(name => ({
           name,
-          have: (byCat[name] || []).length,
+          have: byCat[name] || 0,
           need: this.requiredCategories[name],
         }));
       },
@@ -421,15 +421,10 @@
         try {
           if (this.searchQuery.trim().length > 2) {
             const results = await API.searchMemories(this.searchQuery, 20);
-            this.memories = results;
+            this.memories = results.map(r => r.memory || r);
           } else {
-            // Load all memories flat from profile
-            const byCat = this.profile?.memories_by_category || {};
-            let all = Object.values(byCat).flat();
-            if (this.filterCategory !== 'all') {
-              all = all.filter(m => m.category === this.filterCategory);
-            }
-            this.memories = all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            const category = this.filterCategory !== 'all' ? this.filterCategory : null;
+            this.memories = await API.listMemories(category, 50);
           }
         } catch (err) {
           this.handleError(err, 'Search failed');

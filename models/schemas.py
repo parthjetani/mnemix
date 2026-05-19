@@ -135,6 +135,8 @@ class FeedbackReport(BaseModel):
     overall_score: float
     report_text: str
     evaluations: list[EvaluationResult]
+    session_type: Optional[str] = None
+    started_at: Optional[str] = None
 
 
 # ─── API Request/Response schemas ─────────────────────────────────────────────
