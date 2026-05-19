@@ -1,4 +1,6 @@
 import tempfile
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
@@ -14,11 +16,8 @@ from core.ingestion.claude_parser import parse_claude_export
 from core.processing.segmenter import segment
 from core.processing.extractor import process_ingestion_pipeline
 from core.memory.store import save_memory
-from core.memory.retriever import memory_retriever
+from core.memory.retriever_pgvector import memory_retriever
 from models.schemas import IngestResponse
-
-import uuid
-from datetime import datetime, timezone
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
 

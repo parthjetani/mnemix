@@ -7,7 +7,7 @@ from database import SessionAnswerORM
 from llm.router import llm_router, LLMError
 from llm.prompts import EVALUATION_PROMPT
 from llm.embeddings import embed
-from core.memory.retriever import memory_retriever
+from core.memory.retriever_pgvector import memory_retriever
 from core.memory.store import increment_access_count
 from core.user_context import default_user_context, get_user_profile_orm
 from models.schemas import EvaluationResult

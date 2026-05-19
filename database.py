@@ -6,10 +6,13 @@ from sqlalchemy import (
 )
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
+from pgvector.sqlalchemy import Vector
 
 from config import settings
 
 
+# Supabase uses its own CA not in the system bundle. CERT_NONE is intentional
+# here — this is a private DB connection, not a public HTTPS endpoint.
 _ssl_ctx = ssl.create_default_context()
 _ssl_ctx.check_hostname = False
 _ssl_ctx.verify_mode = ssl.CERT_NONE
@@ -43,7 +46,8 @@ class MemoryORM(Base):
     date_context = Column(Text)
     has_outcome = Column(Boolean, default=False)
     outcome_quantified = Column(Boolean, default=False)
-    embedding = Column(LargeBinary)                # numpy array serialized
+    embedding = Column(LargeBinary)                # numpy array serialized (legacy, dropped post-pgvector cutover)
+    embedding_vec = Column(Vector(384), nullable=True)
     created_at = Column(Text)
     access_count = Column(Integer, default=0)
     last_accessed = Column(Text)

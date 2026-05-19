@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import Response
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -18,7 +18,7 @@ configure_logging(settings.LOG_LEVEL)
 configure_sentry()
 from llm.embeddings import embed
 from core.interview.question_bank import load_questions
-from core.memory.retriever import memory_retriever
+from core.memory.retriever_pgvector import memory_retriever
 from api.ingest import router as ingest_router
 from api.memory import router as memory_router
 from api.interview import router as interview_router
@@ -33,7 +33,6 @@ async def lifespan(app: FastAPI):
     async with AsyncSessionLocal() as db:
         await load_questions(db)
         await db.commit()
-        await memory_retriever.load(db)
     embed("warmup")
     yield
 

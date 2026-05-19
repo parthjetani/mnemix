@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
 from core.auth import get_current_user
-from core.memory.retriever import memory_retriever
+from core.memory.retriever_pgvector import memory_retriever
 from core.rate_limit import limiter
 from llm.router import llm_router, LLMError
 
@@ -68,7 +68,7 @@ async def chat(
                 + "\n---"
             )
 
-    prompt = f"{req.message}{memory_context}"
+    prompt = f"<user_message>\n{req.message}\n</user_message>{memory_context}"
 
     try:
         response_text = await llm_router.call(

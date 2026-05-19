@@ -18,6 +18,7 @@ async def save_memory(
 ) -> str:
     memory_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
+    emb_f32 = embedding.astype(np.float32)
 
     orm_obj = MemoryORM(
         id=memory_id,
@@ -30,7 +31,8 @@ async def save_memory(
         date_context=memory.date_context,
         has_outcome=memory.has_outcome,
         outcome_quantified=memory.outcome_quantified,
-        embedding=embedding.astype(np.float32).tobytes(),
+        embedding=emb_f32.tobytes(),
+        embedding_vec=emb_f32.tolist(),
         created_at=now,
         access_count=0,
     )

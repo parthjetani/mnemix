@@ -10,7 +10,7 @@ from core.auth import get_current_user
 from core.user_context import default_user_context, get_user_profile_orm
 from llm.embeddings import embed
 from core.memory.store import save_memory, count_memories_by_category
-from core.memory.retriever import memory_retriever
+from core.memory.retriever_pgvector import memory_retriever
 from core.memory.gap_detector import detect_gaps
 from models.schemas import Memory, MemoryAddRequest
 

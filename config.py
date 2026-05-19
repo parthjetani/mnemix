@@ -27,8 +27,8 @@ class Settings(BaseSettings):
     MODEL_FALLBACK_REASONING: str = "deepseek/deepseek-r1:free"
     MODEL_FALLBACK_GENERAL: str = "meta-llama/llama-3.3-70b-instruct:free"
 
-    # Database (Supabase PostgreSQL)
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/postgres"
+    # Database (Supabase PostgreSQL) — must be set in .env, no fallback
+    DATABASE_URL: str
 
     # Embeddings (local, no API cost)
     EMBEDDING_MODEL: str = "all-MiniLM-L6-v2"
