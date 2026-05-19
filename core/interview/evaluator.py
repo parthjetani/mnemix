@@ -9,7 +9,7 @@ from llm.prompts import EVALUATION_PROMPT
 from llm.embeddings import embed
 from core.memory.retriever_pgvector import memory_retriever
 from core.memory.store import increment_access_count
-from core.user_context import default_user_context, get_user_profile_orm
+from core.user_context import UserContext, get_user_profile_orm
 from models.schemas import EvaluationResult
 
 logger = logging.getLogger(__name__)
@@ -20,12 +20,13 @@ async def _evaluate_single_answer(
     field: str,
     seniority: str,
     db: AsyncSession,
+    user_id: str | None = None,
 ) -> EvaluationResult:
     answer_text = answer_orm.answer_text or ""
     question_text = answer_orm.question_text or ""
 
-    # Retrieve top memories relevant to this answer
-    top_memories = await memory_retriever.search(answer_text, db, top_k=5)
+    # Retrieve top memories relevant to this answer (scoped to this user)
+    top_memories = await memory_retriever.search(answer_text, db, top_k=5, user_id=user_id)
 
     top_memories_text = json.dumps([
         {"id": m.id, "content": m.content, "category": m.category}
@@ -99,23 +100,25 @@ async def _evaluate_single_answer(
 async def evaluate_session(
     session_id: str,
     db: AsyncSession,
+    user_id: str | None = None,
     field: str = "software_engineering",
     seniority: str = "mid",
 ) -> list[EvaluationResult]:
     from core.interview.session import get_session_answers
 
     # Try to get field/seniority from user profile
-    profile = await get_user_profile_orm(default_user_context(), db)
-    if profile:
-        field = profile.field or field
-        seniority = profile.seniority or seniority
+    if user_id is not None:
+        profile = await get_user_profile_orm(UserContext(user_id=user_id), db)
+        if profile:
+            field = profile.field or field
+            seniority = profile.seniority or seniority
 
     answers = await get_session_answers(session_id, db)
     if not answers:
         return []
 
     # Evaluate all answers in parallel
-    tasks = [_evaluate_single_answer(a, field, seniority, db) for a in answers]
+    tasks = [_evaluate_single_answer(a, field, seniority, db, user_id=user_id) for a in answers]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     evaluations: list[EvaluationResult] = []

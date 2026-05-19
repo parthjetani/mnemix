@@ -13,6 +13,7 @@ async def create_session(
     session_type: str,
     questions: list[Question],
     db: AsyncSession,
+    user_id: str = "default",
 ) -> InterviewSession:
     session_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
@@ -21,6 +22,7 @@ async def create_session(
 
     orm = InterviewSessionORM(
         id=session_id,
+        user_id=user_id,
         started_at=now,
         session_type=session_type,
         status="in_progress",

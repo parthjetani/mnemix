@@ -15,6 +15,7 @@ async def save_memory(
     memory: MemoryCreate,
     embedding: np.ndarray,
     db: AsyncSession,
+    user_id: str = "default",
 ) -> str:
     memory_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
@@ -22,6 +23,7 @@ async def save_memory(
 
     orm_obj = MemoryORM(
         id=memory_id,
+        user_id=user_id,
         content=memory.content,
         category=memory.category,
         themes=json.dumps(memory.themes),
@@ -43,8 +45,12 @@ async def save_memory(
 
 async def get_all_memories(
     db: AsyncSession,
+    user_id: str | None = None,
 ) -> list[tuple[MemorySchema, np.ndarray]]:
-    result = await db.execute(select(MemoryORM))
+    stmt = select(MemoryORM)
+    if user_id is not None:
+        stmt = stmt.where(MemoryORM.user_id == user_id)
+    result = await db.execute(stmt)
     rows = result.scalars().all()
     out = []
     for row in rows:
@@ -57,10 +63,12 @@ async def get_all_memories(
 async def get_memories_by_category(
     category: str,
     db: AsyncSession,
+    user_id: str | None = None,
 ) -> list[MemorySchema]:
-    result = await db.execute(
-        select(MemoryORM).where(MemoryORM.category == category)
-    )
+    stmt = select(MemoryORM).where(MemoryORM.category == category)
+    if user_id is not None:
+        stmt = stmt.where(MemoryORM.user_id == user_id)
+    result = await db.execute(stmt)
     return [_orm_to_schema(r) for r in result.scalars().all()]
 
 
@@ -75,11 +83,14 @@ async def get_memory_by_id(
     return _orm_to_schema(row) if row else None
 
 
-async def count_memories_by_category(db: AsyncSession) -> dict[str, int]:
-    result = await db.execute(
-        select(MemoryORM.category, func.count(MemoryORM.id))
-        .group_by(MemoryORM.category)
-    )
+async def count_memories_by_category(
+    db: AsyncSession,
+    user_id: str | None = None,
+) -> dict[str, int]:
+    stmt = select(MemoryORM.category, func.count(MemoryORM.id)).group_by(MemoryORM.category)
+    if user_id is not None:
+        stmt = stmt.where(MemoryORM.user_id == user_id)
+    result = await db.execute(stmt)
     return {row[0]: row[1] for row in result.all()}
 
 

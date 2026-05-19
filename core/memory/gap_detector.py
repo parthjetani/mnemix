@@ -26,8 +26,8 @@ REQUIRED_CATEGORIES: dict[str, dict] = {
 WEIGHT_ORDER = {"high": 0, "medium": 1, "low": 2}
 
 
-async def detect_gaps(db: AsyncSession) -> list[dict]:
-    counts = await count_memories_by_category(db)
+async def detect_gaps(db: AsyncSession, user_id: str | None = None) -> list[dict]:
+    counts = await count_memories_by_category(db, user_id=user_id)
     gaps = []
 
     for category, config in REQUIRED_CATEGORIES.items():
@@ -79,8 +79,8 @@ async def detect_gaps(db: AsyncSession) -> list[dict]:
     return gaps
 
 
-async def get_gap_summary(db: AsyncSession) -> str:
-    gaps = await detect_gaps(db)
+async def get_gap_summary(db: AsyncSession, user_id: str | None = None) -> str:
+    gaps = await detect_gaps(db, user_id=user_id)
     if not gaps:
         return "[green]All required memory categories are covered![/green]"
 

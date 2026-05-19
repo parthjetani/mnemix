@@ -6,8 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import MemoryORM, get_db
-from core.auth import get_current_user
-from core.user_context import default_user_context, get_user_profile_orm
+from core.user_context import UserContext, get_user_context, get_user_profile_orm
 from llm.embeddings import embed
 from core.memory.store import save_memory, count_memories_by_category
 from core.memory.retriever_pgvector import memory_retriever
@@ -20,11 +19,16 @@ router = APIRouter(prefix="/memory", tags=["memory"])
 @router.get("/profile")
 async def get_memory_profile(
     db: AsyncSession = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    ctx: UserContext = Depends(get_user_context),
 ):
-    category_counts = await count_memories_by_category(db)
+    category_counts = await count_memories_by_category(db, user_id=ctx.user_id)
 
-    result = await db.execute(select(MemoryORM).order_by(MemoryORM.access_count.desc()).limit(5))
+    result = await db.execute(
+        select(MemoryORM)
+        .where(MemoryORM.user_id == ctx.user_id)
+        .order_by(MemoryORM.access_count.desc())
+        .limit(5)
+    )
     top_memories_orm = result.scalars().all()
     top_memories = [
         {
@@ -37,7 +41,7 @@ async def get_memory_profile(
         for m in top_memories_orm
     ]
 
-    profile = await get_user_profile_orm(default_user_context(), db)
+    profile = await get_user_profile_orm(ctx, db)
     profile_data = None
     if profile:
         profile_data = {
@@ -58,9 +62,9 @@ async def get_memory_profile(
 @router.get("/gaps")
 async def get_memory_gaps(
     db: AsyncSession = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    ctx: UserContext = Depends(get_user_context),
 ):
-    gaps = await detect_gaps(db)
+    gaps = await detect_gaps(db, user_id=ctx.user_id)
     return {"gaps": gaps, "total_gaps": len(gaps)}
 
 
@@ -68,10 +72,10 @@ async def get_memory_gaps(
 async def add_memory(
     request: MemoryAddRequest,
     db: AsyncSession = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    ctx: UserContext = Depends(get_user_context),
 ):
     embedding = embed(request.content)
-    memory_id = await save_memory(request, embedding, db)
+    memory_id = await save_memory(request, embedding, db, user_id=ctx.user_id)
     await memory_retriever.add_to_index(memory_id, embedding)
 
     result = await db.execute(select(MemoryORM).where(MemoryORM.id == memory_id))
@@ -101,11 +105,11 @@ async def search_memories(
     q: str,
     top_k: int = 5,
     db: AsyncSession = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    ctx: UserContext = Depends(get_user_context),
 ):
     if not q.strip():
         raise HTTPException(status_code=400, detail="Query cannot be empty")
-    results = await memory_retriever.search(q, db, top_k=min(top_k, 20))
+    results = await memory_retriever.search(q, db, top_k=min(top_k, 20), user_id=ctx.user_id)
     return [
         {"memory": mem.model_dump(exclude={"embedding"}), "similarity": round(score, 4)}
         for mem, score in results
@@ -117,16 +121,16 @@ async def list_memories(
     category: Optional[str] = None,
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    ctx: UserContext = Depends(get_user_context),
 ):
-    stmt = select(MemoryORM).order_by(MemoryORM.created_at.desc()).limit(min(limit, 200))
+    stmt = (
+        select(MemoryORM)
+        .where(MemoryORM.user_id == ctx.user_id)
+        .order_by(MemoryORM.created_at.desc())
+        .limit(min(limit, 200))
+    )
     if category:
-        stmt = (
-            select(MemoryORM)
-            .where(MemoryORM.category == category)
-            .order_by(MemoryORM.created_at.desc())
-            .limit(min(limit, 200))
-        )
+        stmt = stmt.where(MemoryORM.category == category)
     result = await db.execute(stmt)
     rows = result.scalars().all()
     return [

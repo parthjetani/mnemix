@@ -4,12 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
-from core.auth import get_current_user
-from core.user_context import (
-    default_user_context,
-    get_or_create_user_profile_orm,
-    get_user_profile_orm,
-)
+from core.user_context import UserContext, get_user_context, get_or_create_user_profile_orm, get_user_profile_orm
 from models.schemas import UserProfile
 
 router = APIRouter(prefix="/profile", tags=["profile"])
@@ -18,9 +13,8 @@ router = APIRouter(prefix="/profile", tags=["profile"])
 @router.get("", response_model=UserProfile)
 async def get_profile(
     db: AsyncSession = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    ctx: UserContext = Depends(get_user_context),
 ):
-    ctx = default_user_context()
     row = await get_user_profile_orm(ctx, db)
     if not row:
         return UserProfile(
@@ -43,9 +37,8 @@ async def get_profile(
 async def update_profile(
     data: dict,
     db: AsyncSession = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    ctx: UserContext = Depends(get_user_context),
 ):
-    ctx = default_user_context()
     row = await get_or_create_user_profile_orm(ctx, db)
 
     if "field" in data:

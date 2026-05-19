@@ -7,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import IngestionJobORM, get_db
-from core.auth import get_current_user
+from core.user_context import UserContext, get_user_context
 from core.rate_limit import limiter
 from llm.embeddings import embed
 from core.ingestion.resume_parser import parse_resume
@@ -48,7 +48,7 @@ def _save_upload_with_limit(upload: UploadFile, suffix: str, max_bytes: int) -> 
     return Path(tmp.name)
 
 
-async def _run_resume_ingestion(job_id: str, temp_path: Path) -> None:
+async def _run_resume_ingestion(job_id: str, temp_path: Path, user_id: str) -> None:
     from database import async_session_factory
     async with async_session_factory() as db:
         try:
@@ -66,7 +66,7 @@ async def _run_resume_ingestion(job_id: str, temp_path: Path) -> None:
             saved = 0
             for mem in raw_memories:
                 embedding = embed(mem.content)
-                mid = await save_memory(mem, embedding, db)
+                mid = await save_memory(mem, embedding, db, user_id=user_id)
                 await memory_retriever.add_to_index(mid, embedding)
                 saved += 1
 
@@ -86,7 +86,7 @@ async def _run_resume_ingestion(job_id: str, temp_path: Path) -> None:
             temp_path.unlink(missing_ok=True)
 
 
-async def _run_ai_export_ingestion(job_id: str, temp_path: Path, source_type: str) -> None:
+async def _run_ai_export_ingestion(job_id: str, temp_path: Path, source_type: str, user_id: str) -> None:
     from database import async_session_factory
     async with async_session_factory() as db:
         try:
@@ -113,7 +113,7 @@ async def _run_ai_export_ingestion(job_id: str, temp_path: Path, source_type: st
             saved = 0
             for mem in memories:
                 embedding = embed(mem.content)
-                mid = await save_memory(mem, embedding, db)
+                mid = await save_memory(mem, embedding, db, user_id=user_id)
                 await memory_retriever.add_to_index(mid, embedding)
                 saved += 1
 
@@ -140,7 +140,7 @@ async def ingest_resume(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    ctx: UserContext = Depends(get_user_context),
 ):
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files accepted")
@@ -159,15 +159,16 @@ async def ingest_resume(
 
     job = IngestionJobORM(
         id=job_id,
+        user_id=ctx.user_id,
         source_type="resume",
         status="queued",
         progress=0,
         created_at=now,
     )
     db.add(job)
-    await db.commit()   # commit before background task so it can see the row
+    await db.commit()
 
-    background_tasks.add_task(_run_resume_ingestion, job_id, temp_path)
+    background_tasks.add_task(_run_resume_ingestion, job_id, temp_path, ctx.user_id)
 
     return IngestResponse(job_id=job_id, status="queued", message="Resume ingestion started")
 
@@ -180,7 +181,7 @@ async def ingest_ai_export(
     file: UploadFile = File(...),
     source_type: str = Form(...),
     db: AsyncSession = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    ctx: UserContext = Depends(get_user_context),
 ):
     if source_type not in ("chatgpt", "claude"):
         raise HTTPException(status_code=400, detail="source_type must be 'chatgpt' or 'claude'")
@@ -200,15 +201,16 @@ async def ingest_ai_export(
 
     job = IngestionJobORM(
         id=job_id,
+        user_id=ctx.user_id,
         source_type=source_type,
         status="queued",
         progress=0,
         created_at=now,
     )
     db.add(job)
-    await db.commit()   # commit before background task so it can see the row
+    await db.commit()
 
-    background_tasks.add_task(_run_ai_export_ingestion, job_id, temp_path, source_type)
+    background_tasks.add_task(_run_ai_export_ingestion, job_id, temp_path, source_type, ctx.user_id)
 
     return IngestResponse(job_id=job_id, status="queued", message=f"{source_type} export ingestion started")
 
@@ -216,11 +218,13 @@ async def ingest_ai_export(
 @router.get("/jobs")
 async def list_jobs(
     db: AsyncSession = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    ctx: UserContext = Depends(get_user_context),
 ):
     from sqlalchemy import select
     result = await db.execute(
-        select(IngestionJobORM).order_by(IngestionJobORM.created_at.desc())
+        select(IngestionJobORM)
+        .where(IngestionJobORM.user_id == ctx.user_id)
+        .order_by(IngestionJobORM.created_at.desc())
     )
     jobs = result.scalars().all()
     return [
@@ -246,9 +250,16 @@ async def list_jobs(
 async def get_ingest_status(
     job_id: str,
     db: AsyncSession = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    ctx: UserContext = Depends(get_user_context),
 ):
-    job = await db.get(IngestionJobORM, job_id)
+    from sqlalchemy import select
+    result = await db.execute(
+        select(IngestionJobORM).where(
+            IngestionJobORM.id == job_id,
+            IngestionJobORM.user_id == ctx.user_id,
+        )
+    )
+    job = result.scalar_one_or_none()
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
     return {

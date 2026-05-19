@@ -40,6 +40,7 @@ class PgvectorRetriever:
         query_text: str,
         db: AsyncSession,
         top_k: int = 5,
+        user_id: str | None = None,
     ) -> list[tuple[MemorySchema, float]]:
         from core.memory.store import get_memories_by_ids  # local import to avoid cycle
 
@@ -47,16 +48,20 @@ class PgvectorRetriever:
         vec_literal = "[" + ",".join(f"{x:.6f}" for x in query_vec.tolist()) + "]"
         k = min(top_k, 20)
 
+        uid_filter = "AND user_id = :uid" if user_id is not None else ""
         sql = text(
-            """
+            f"""
             SELECT id, 1 - (embedding_vec <=> CAST(:q AS vector)) AS similarity
               FROM memories
-             WHERE embedding_vec IS NOT NULL
+             WHERE embedding_vec IS NOT NULL {uid_filter}
           ORDER BY embedding_vec <=> CAST(:q AS vector) ASC
              LIMIT :k
             """
         )
-        result = await db.execute(sql, {"q": vec_literal, "k": k})
+        params: dict = {"q": vec_literal, "k": k}
+        if user_id is not None:
+            params["uid"] = user_id
+        result = await db.execute(sql, params)
         rows = result.all()
         if not rows:
             return []

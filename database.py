@@ -121,7 +121,8 @@ class IngestionJobORM(Base):
 class UserProfileORM(Base):
     __tablename__ = "user_profile"
 
-    id = Column(Integer, primary_key=True, default=1)
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Text, nullable=True, index=True, unique=True)  # Supabase UUID
     field = Column(Text, default="software_engineering")
     seniority = Column(Text, default="mid")
     primary_stack = Column(Text, default="[]")     # JSON array as text
@@ -137,9 +138,11 @@ _USER_ID_MIGRATIONS = (
     "ALTER TABLE memories ADD COLUMN IF NOT EXISTS user_id TEXT",
     "ALTER TABLE interview_sessions ADD COLUMN IF NOT EXISTS user_id TEXT",
     "ALTER TABLE ingestion_jobs ADD COLUMN IF NOT EXISTS user_id TEXT",
+    "ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS user_id TEXT",
     "CREATE INDEX IF NOT EXISTS memories_user_id_idx ON memories (user_id)",
     "CREATE INDEX IF NOT EXISTS interview_sessions_user_id_idx ON interview_sessions (user_id)",
     "CREATE INDEX IF NOT EXISTS ingestion_jobs_user_id_idx ON ingestion_jobs (user_id)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS user_profile_user_id_idx ON user_profile (user_id)",
 )
 
 

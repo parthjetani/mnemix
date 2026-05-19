@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 from database import InterviewSessionORM, get_db
-from core.auth import get_current_user
+from core.user_context import UserContext, get_user_context
 from core.rate_limit import limiter
 from core.interview.question_bank import select_questions
 from core.interview.session import (
@@ -27,13 +27,16 @@ router = APIRouter(prefix="/interview", tags=["interview"])
 
 async def _run_evaluation(session_id: str) -> None:
     from database import async_session_factory
-    # Small delay so the submit_answer transaction fully commits before we start writing
     await asyncio.sleep(1.5)
     for attempt in range(3):
         async with async_session_factory() as db:
             try:
-                evaluations = await evaluate_session(session_id, db)
-                await generate_feedback(session_id, evaluations, db)
+                # Resolve user_id from the persisted session row.
+                session_row = await db.get(InterviewSessionORM, session_id)
+                user_id = session_row.user_id if session_row else None
+
+                evaluations = await evaluate_session(session_id, db, user_id=user_id)
+                await generate_feedback(session_id, evaluations, db, user_id=user_id)
                 await db.commit()
                 return
             except Exception as exc:
@@ -43,7 +46,6 @@ async def _run_evaluation(session_id: str) -> None:
                     await asyncio.sleep(3)
                 else:
                     logger.error(f"Evaluation background task failed for {session_id}: {exc}", exc_info=True)
-                    # Mark the session failed so the UI can stop polling and surface an error.
                     try:
                         async with async_session_factory() as fail_db:
                             session = await fail_db.get(InterviewSessionORM, session_id)
@@ -61,14 +63,13 @@ async def start_interview(
     request: Request,
     body: InterviewStartRequest,
     db: AsyncSession = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    ctx: UserContext = Depends(get_user_context),
 ):
     questions = await select_questions(body.session_type, db, count=8)
     if not questions:
         raise HTTPException(status_code=500, detail="No questions available — seed the question bank first")
 
-    session = await create_session(body.session_type, questions, db)
-
+    session = await create_session(body.session_type, questions, db, user_id=ctx.user_id)
     next_q = await get_next_question(session.id, db)
 
     return {
@@ -85,10 +86,13 @@ async def submit_answer(
     request: AnswerRequest,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    ctx: UserContext = Depends(get_user_context),
 ):
     session_result = await db.execute(
-        select(InterviewSessionORM).where(InterviewSessionORM.id == request.session_id)
+        select(InterviewSessionORM).where(
+            InterviewSessionORM.id == request.session_id,
+            InterviewSessionORM.user_id == ctx.user_id,
+        )
     )
     session = session_result.scalar_one_or_none()
     if not session:
@@ -128,10 +132,13 @@ async def submit_answer(
 async def get_evaluation(
     session_id: str,
     db: AsyncSession = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    ctx: UserContext = Depends(get_user_context),
 ):
     session_result = await db.execute(
-        select(InterviewSessionORM).where(InterviewSessionORM.id == session_id)
+        select(InterviewSessionORM).where(
+            InterviewSessionORM.id == session_id,
+            InterviewSessionORM.user_id == ctx.user_id,
+        )
     )
     session = session_result.scalar_one_or_none()
     if not session:
@@ -176,10 +183,13 @@ async def get_evaluation(
 @router.get("/sessions")
 async def list_sessions(
     db: AsyncSession = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    ctx: UserContext = Depends(get_user_context),
 ):
     result = await db.execute(
-        select(InterviewSessionORM).order_by(InterviewSessionORM.started_at.desc()).limit(20)
+        select(InterviewSessionORM)
+        .where(InterviewSessionORM.user_id == ctx.user_id)
+        .order_by(InterviewSessionORM.started_at.desc())
+        .limit(20)
     )
     sessions = result.scalars().all()
     return [

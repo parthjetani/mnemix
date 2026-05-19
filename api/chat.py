@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
-from core.auth import get_current_user
+from core.user_context import UserContext, get_user_context
 from core.memory.retriever_pgvector import memory_retriever
 from core.rate_limit import limiter
 from llm.router import llm_router, LLMError
@@ -38,14 +38,14 @@ async def chat(
     request: Request,
     req: ChatRequest,
     db: AsyncSession = Depends(get_db),
-    _user: dict = Depends(get_current_user),
+    ctx: UserContext = Depends(get_user_context),
 ):
     if not req.message.strip():
         raise HTTPException(status_code=400, detail={"error": "Message cannot be empty"})
 
-    # Retrieve relevant memories
+    # Retrieve relevant memories scoped to this user
     try:
-        top_memories = await memory_retriever.search(req.message, db, top_k=5)
+        top_memories = await memory_retriever.search(req.message, db, top_k=5, user_id=ctx.user_id)
     except Exception as e:
         logger.warning(f"Memory retrieval failed for chat: {type(e).__name__}: {e}")
         top_memories = []

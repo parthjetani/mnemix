@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import InterviewSessionORM
-from core.user_context import default_user_context, get_user_profile_orm
+from core.user_context import UserContext, get_user_profile_orm
 from llm.router import llm_router, LLMError
 from llm.prompts import FEEDBACK_PROMPT
 from models.schemas import EvaluationResult, FeedbackReport
@@ -18,6 +18,7 @@ async def generate_feedback(
     session_id: str,
     evaluations: list[EvaluationResult],
     db: AsyncSession,
+    user_id: str | None = None,
 ) -> FeedbackReport:
     if not evaluations:
         return FeedbackReport(
@@ -30,7 +31,8 @@ async def generate_feedback(
     overall_score = round(sum(e.total_score for e in evaluations) / len(evaluations), 1)
 
     # Build profile summary
-    profile = await get_user_profile_orm(default_user_context(), db)
+    ctx = UserContext(user_id=user_id) if user_id else UserContext(user_id="default")
+    profile = await get_user_profile_orm(ctx, db)
     profile_summary = "Software engineer, mid-level"
     if profile:
         profile_summary = (
