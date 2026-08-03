@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import SessionAnswerORM
 from llm.router import llm_router, LLMError
 from llm.prompts import EVALUATION_PROMPT
-from llm.embeddings import embed
 from core.memory.retriever_pgvector import memory_retriever
 from core.memory.store import increment_access_count
 from core.user_context import UserContext, get_user_profile_orm

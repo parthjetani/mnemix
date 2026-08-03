@@ -9,18 +9,7 @@ from models.schemas import Memory as MemorySchema
 
 
 class MemoryRetriever:
-    """In-process numpy similarity index.
-
-    SAFE: single uvicorn worker (the default). The asyncio.Lock below
-    serializes mutations within a worker.
-
-    UNSAFE: multiple workers (``--workers N`` or gunicorn -w N). Each
-    worker process holds its own ``MemoryRetriever`` instance, so a memory
-    written by worker A is invisible to worker B's index until restart. This
-    is a silent correctness failure, not a crash. Don't run multi-worker
-    until the pgvector migration (P4.22) lands and the in-memory index is
-    removed.
-    """
+    """DEPRECATED, kept for rollback only — in-process numpy index, unsafe across multiple workers."""
 
     def __init__(self):
         self._embeddings: np.ndarray | None = None  # shape (N, 384)
@@ -49,8 +38,7 @@ class MemoryRetriever:
         if not self._loaded:
             await self.load(db)
 
-        # Snapshot index state under the lock so a concurrent add_to_index
-        # cannot reshape the matrix mid-similarity computation.
+        # Snapshot under the lock so a concurrent add_to_index can't reshape mid-computation.
         async with self._lock:
             if self._embeddings is None or len(self._memory_ids) == 0:
                 return []

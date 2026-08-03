@@ -50,8 +50,7 @@ async def chat(
         logger.warning(f"Memory retrieval failed for chat: {type(e).__name__}: {e}")
         top_memories = []
 
-    # Build context from memories. Serialize as JSON inside an explicit data
-    # delimiter so model treats memory text as untrusted facts, not instructions.
+    # Delimited as untrusted data so the model treats memory text as facts, not instructions.
     memory_context = ""
     memories_used = []
     if top_memories:

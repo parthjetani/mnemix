@@ -52,6 +52,10 @@ def configure_logging(level: str = "INFO") -> None:
     # Quiet down noisy third parties; keep our own loggers at the configured level.
     for noisy in ("uvicorn.access", "httpx", "httpcore"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
+    # Remove SQLAlchemy's own echo=True handler to avoid double-logging.
+    sqlalchemy_engine_logger = logging.getLogger("sqlalchemy.engine.Engine")
+    for handler in list(sqlalchemy_engine_logger.handlers):
+        sqlalchemy_engine_logger.removeHandler(handler)
 
 
 def configure_sentry() -> bool:

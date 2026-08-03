@@ -2,43 +2,45 @@
 
 All configuration is loaded from the `.env` file by `config.py` using pydantic-settings. Copy `.env.example` to `.env` to get started.
 
-## API Keys (Required)
+## API Keys
 
 | Variable | Description |
 |----------|-------------|
-| `GROQ_API_KEY` | Groq API key. Primary provider for all LLM tasks. Free tier: 14,400 req/day, no credit card needed. Get one at [console.groq.com](https://console.groq.com). |
-| `OPENROUTER_API_KEY` | OpenRouter API key. Used as fallback when Groq fails. Free tier gives access to `:free` models (50 req/day per model). Get one at [openrouter.ai](https://openrouter.ai). |
+| `GROQ_API_KEY` | Groq API key. **Required** — the server will fail to start without it. Free tier: 14,400 req/day for 8B-class models (much lower for `llama-3.3-70b-versatile`, ~1,000 req/day), no credit card needed. Get one at [console.groq.com](https://console.groq.com). |
+| `NVIDIA_API_KEY` | NVIDIA NIM API key. Optional but recommended — primary provider for `extract`/`eval`/`feedback` chains. If unset, those chains skip straight to their Groq fallback with no wasted network call. Get one at [build.nvidia.com/settings/api-keys](https://build.nvidia.com/settings/api-keys). |
+| `GEMINI_API_KEY` | Gemini API key (OpenAI-compat endpoint). Optional — mid-tier fallback in several chains. Get one at [aistudio.google.com/apikey](https://aistudio.google.com/apikey). |
 
-Both keys are **required** — the server will fail to start without them.
+Only `GROQ_API_KEY` is required; `NVIDIA_API_KEY` and `GEMINI_API_KEY` are optional but each configured key adds resilience (an extra fallback tier) to the task chains.
 
 ## Base URLs (Optional)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `GROQ_BASE_URL` | `https://api.groq.com/openai/v1` | Groq API endpoint |
-| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | OpenRouter API endpoint |
+| `NVIDIA_BASE_URL` | `https://integrate.api.nvidia.com/v1` | NVIDIA NIM API endpoint |
+| `GEMINI_BASE_URL` | `https://generativelanguage.googleapis.com/v1beta/openai` | Gemini OpenAI-compat endpoint |
 
 These rarely need changing.
 
 ## Model Selection
 
-All models default to values optimized for the free tier. Change only if you have paid access to higher-quality models.
+All models default to values optimized for the free tier. Each task routes through an ordered chain of providers (see `docs/LLM_SYSTEM.md` for the full per-task chain) — the variables below name the individual model IDs used within those chains.
 
-| Variable | Default | Task | Provider |
-|----------|---------|------|----------|
-| `MODEL_CLASSIFY` | `llama-3.3-70b-versatile` | Classify ambiguous segments | Groq |
-| `MODEL_EXTRACT` | `llama-3.3-70b-versatile` | Extract memories from segments | Groq |
-| `MODEL_PROFILE` | `llama-3.3-70b-versatile` | Synthesize user profile | Groq |
-| `MODEL_Q_BEHAVIORAL` | `openai/gpt-oss-20b` | Generate behavioral questions | Groq (via OpenAI compat) |
-| `MODEL_Q_TECHNICAL` | `qwen/qwen3-32b` | Generate technical questions | Groq |
-| `MODEL_EVAL` | `llama-3.3-70b-versatile` | Evaluate interview answers | Groq |
-| `MODEL_EVAL_SYSDESIGN` | `qwen/qwen3-32b` | Evaluate system design answers | Groq |
-| `MODEL_FEEDBACK` | `llama-3.3-70b-versatile` | Generate feedback report | Groq |
-| `MODEL_GAP_ANALYSIS` | `qwen/qwen3-32b` | Analyze memory gaps | Groq |
-| `MODEL_FALLBACK_REASONING` | `deepseek/deepseek-r1:free` | Fallback for reasoning tasks | OpenRouter |
-| `MODEL_FALLBACK_GENERAL` | `meta-llama/llama-3.3-70b-instruct:free` | Fallback for general tasks | OpenRouter |
+| Variable | Default | Provider tier |
+|----------|---------|----------------|
+| `MODEL_CLASSIFY` | `llama-3.1-8b-instant` | Groq |
+| `MODEL_EXTRACT` | `llama-3.3-70b-versatile` | Groq |
+| `MODEL_EVAL` | `llama-3.3-70b-versatile` | Groq |
+| `MODEL_EVAL_SYSDESIGN` | `qwen/qwen3-32b` | Groq |
+| `MODEL_FEEDBACK` | `llama-3.3-70b-versatile` | Groq |
+| `MODEL_GAP_ANALYSIS` | `qwen/qwen3-32b` | Groq |
+| `MODEL_NIM_CLASSIFY` | `meta/llama-3.1-8b-instruct` | NVIDIA NIM |
+| `MODEL_NIM_EXTRACT` | `deepseek-ai/deepseek-v4-flash` | NVIDIA NIM |
+| `MODEL_NIM_REASONING` | `moonshotai/kimi-k2-thinking` | NVIDIA NIM |
+| `MODEL_GEMINI_FLASH_LITE` | `gemini-3.5-flash-lite` | Gemini |
+| `MODEL_GEMMA4` | `gemma-4-31b-it` | Gemini |
 
-`qwen/qwen3-32b` is a thinking model. Its `<think>...</think>` blocks are automatically stripped by `parse_json_response` before JSON parsing.
+`qwen/qwen3-32b` and `moonshotai/kimi-k2-thinking` are thinking models. Their `<think>...</think>` blocks are automatically stripped by `parse_json_response` before JSON parsing.
 
 ## Database
 
@@ -104,7 +106,10 @@ Increase `EXTRACTION_BATCH_SIZE` or decrease `EXTRACTION_BATCH_DELAY` if you hav
 ```env
 # Required
 GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxx
-OPENROUTER_API_KEY=sk-or-xxxxxxxxxxxxxxxxxxxx
+
+# Optional — add resilience/quality to task chains
+NVIDIA_API_KEY=nvapi-xxxxxxxxxxxxxxxxxxxx
+GEMINI_API_KEY=xxxxxxxxxxxxxxxxxxxx
 
 # Database (Supabase PostgreSQL)
 DATABASE_URL=postgresql+asyncpg://postgres:your-password@db.your-project.supabase.co:5432/postgres
@@ -134,7 +139,8 @@ LOG_LEVEL=INFO
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
     GROQ_API_KEY: str           # Required — no default
-    OPENROUTER_API_KEY: str     # Required — no default
+    NVIDIA_API_KEY: str = ""    # Optional — chains skip this provider if unset
+    GEMINI_API_KEY: str = ""    # Optional — chains skip this provider if unset
     DATABASE_URL: str  # Required — Supabase PostgreSQL connection string
     ...
 
@@ -146,3 +152,5 @@ Access settings anywhere with:
 from config import settings
 print(settings.GROQ_API_KEY)
 ```
+
+**Gotcha:** pydantic-settings prioritizes real OS environment variables over `.env` file values. If you've ever `export`ed or `source`d `.env` into a shell session, those exported values will silently shadow later edits to the `.env` file in that same session. Run `env | grep MODEL_` (or open a fresh terminal) if a config change doesn't seem to take effect.

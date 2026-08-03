@@ -6,39 +6,32 @@ All LLM interactions go through `llm/router.py`. Core modules never import or in
 
 ### Providers
 
-Two OpenAI-compatible client instances are initialized at module load:
+Three OpenAI-compatible client instances are initialized at module load:
 
 ```python
-groq_client = AsyncOpenAI(
-    api_key=settings.GROQ_API_KEY,
-    base_url="https://api.groq.com/openai/v1",
-)
-
-openrouter_client = AsyncOpenAI(
-    api_key=settings.OPENROUTER_API_KEY,
-    base_url="https://openrouter.ai/api/v1",
-)
+groq_client = AsyncOpenAI(api_key=settings.GROQ_API_KEY, base_url=settings.GROQ_BASE_URL)
+nvidia_client = AsyncOpenAI(api_key=settings.NVIDIA_API_KEY or "unset", base_url=settings.NVIDIA_BASE_URL)
+gemini_client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY or "unset", base_url=settings.GEMINI_BASE_URL)
 ```
 
-Groq is the primary provider. OpenRouter is used as a fallback if Groq raises an error.
+There is no single "primary" provider anymore — each task has its own ordered chain (see below). A provider slot with no API key configured is marked `enabled=False` and skipped without making a network call.
 
 ### Task Routing
 
-Every LLM call specifies a task string. `TASK_ROUTES` maps each task to a `(model, client)` pair:
+Every LLM call specifies a task string. `TASK_CHAINS` maps each task to an ordered list of `ProviderSlot`s, tried in order:
 
-| Task | Model | Provider | Use |
-|------|-------|----------|-----|
-| `classify` | `llama-3.3-70b-versatile` | Groq | Classify ambiguous conversation segments |
-| `extract` | `llama-3.3-70b-versatile` | Groq | Extract memories from professional content |
-| `profile` | `llama-3.3-70b-versatile` | Groq | Synthesize user profile from memory summary |
-| `q_behavioral` | `openai/gpt-oss-20b` | Groq | Generate behavioral interview questions |
-| `q_technical` | `qwen/qwen3-32b` | Groq | Generate technical interview questions |
-| `eval` | `llama-3.3-70b-versatile` | Groq | Evaluate behavioral/technical answers |
-| `eval_sysdesign` | `qwen/qwen3-32b` | Groq | Evaluate system design answers (reasoning model) |
-| `feedback` | `llama-3.3-70b-versatile` | Groq | Generate final feedback report |
-| `gap_analysis` | `qwen/qwen3-32b` | Groq | Generate questions for memory gap categories |
+| Task | Chain (in order) | Use |
+|------|-------------------|-----|
+| `classify` | Groq 8B → Gemini Gemma4 → NIM Llama-8B | Classify ambiguous conversation segments |
+| `extract` | NIM DeepSeek-v4-flash → Gemini Flash-Lite → Groq 70B | Extract memories from professional content |
+| `eval` | NIM Kimi-k2-thinking → Groq 70B | Evaluate behavioral/technical answers |
+| `eval_sysdesign` | NIM Kimi-k2-thinking → Groq qwen3-32b | Evaluate system design answers (reasoning model) |
+| `feedback` | NIM Kimi-k2-thinking → Gemini Flash-Lite → Groq 70B | Generate final feedback report |
+| `gap_analysis` | Groq qwen3-32b → NIM Llama-8B | Generate questions for memory gap categories |
 
-Model names are read from `config.py` settings, not hardcoded here — change them via `.env`.
+Model names and chain composition are defined in `llm/router.py` (`TASK_CHAINS`); the individual model IDs come from `config.py` settings — change them via `.env`.
+
+Note: there is no LLM-based profile synthesis or LLM-generated interview questions. Profile fields are plain manual CRUD (`api/profile.py`), and interview questions come entirely from the static seeded question bank (`core/interview/question_bank.py`). Previously-scaffolded `profile`/`q_behavioral`/`q_technical` task chains were removed since nothing ever called them — see CLAUDE.md's decision log if this becomes a real feature later.
 
 ### Calling the Router
 
@@ -57,11 +50,14 @@ Returns the raw string content from the LLM response.
 
 ### Fallback Strategy
 
-If the primary Groq call raises an `OpenAIError`:
+`LLMRouter.call()` walks the task's chain in order:
 
-1. The task's model and client are swapped for the OpenRouter fallback
-2. The fallback model is `MODEL_FALLBACK_REASONING` (for `eval_sysdesign`, `gap_analysis`, `q_technical`) or `MODEL_FALLBACK_GENERAL` (for all other tasks)
-3. If the fallback also fails, `LLMError` is raised
+1. Skip any provider slot that's `disabled` (no API key configured) or whose `QuotaTracker` reports exhausted (RPD cap hit, or a prior `RateLimitError` marked it exhausted for the rest of the day)
+2. On `RateLimitError`, mark that provider exhausted until the next day-rollover, respect `Retry-After` (capped at 5s), and fall through to the next provider
+3. On any other `OpenAIError`, log and fall through to the next provider
+4. Raise `LLMError` only once every provider in the chain has been skipped, rate-limited, or failed
+
+`QuotaTracker` state (RPM sliding window + RPD counter) is in-process only — correct for a single worker/process, not multi-worker/multi-pod (fine for the current local-only deployment; would need a Redis-backed counter to scale out).
 
 All callers in `core/` catch `LLMError` and either return a safe default or raise `HTTPException(500)`.
 
@@ -83,7 +79,7 @@ Raises `ValueError` if no valid JSON is found.
 
 ## Prompts (`llm/prompts.py`)
 
-Eight module-level string constants. No logic — format strings only.
+Five module-level string constants. No logic — format strings only.
 
 ### `CLASSIFICATION_PROMPT`
 
@@ -131,38 +127,6 @@ Used by `core/processing/classifier.py` only for segments that don't match the k
 - Minimum confidence 0.65 to include
 - Return `{"memories": []}` if nothing qualifies
 - Never extract personal life content
-
----
-
-### `PROFILE_PROMPT`
-
-**Task:** Synthesize a user profile from memory statistics and sample memories.
-
-**Input variables:** `{field}`, `{memory_summary}`, `{sample_memories}`
-
-**Output:** JSON with `communication_style`, `strength_areas`, `gap_areas`, `career_narrative`.
-
----
-
-### `Q_BEHAVIORAL_PROMPT`
-
-**Task:** Generate one behavioral interview question for a specific category.
-
-**Input variables:** `{category}`, `{profile_summary}`
-
-**Output:** Plain text question (no JSON).
-
-Questions must start with "Tell me about a time..." or "Describe a situation where..." — forces specificity.
-
----
-
-### `Q_TECHNICAL_PROMPT`
-
-**Task:** Generate one technical interview question.
-
-**Input variables:** `{category}`, `{stack}`, `{seniority}`
-
-**Output:** Plain text question.
 
 ---
 
@@ -228,15 +192,11 @@ Local sentence-transformers wrapper. No API calls.
 **Lazy loading:** The model is not loaded until the first `embed()` call. `main.py` calls `embed("warmup")` during startup to trigger the download before any requests arrive.
 
 ```python
-from llm.embeddings import embed, embed_batch, cosine_similarity
+from llm.embeddings import embed, cosine_similarity
 
 # Single embedding — cached by text content
 vector = embed("Led a Django to FastAPI migration, reduced latency by 40%")
 # → np.ndarray of shape (384,), dtype float32
-
-# Batch — only encodes uncached texts
-vectors = embed_batch(["text one", "text two", "text three"])
-# → list of np.ndarray
 
 # Similarity
 score = cosine_similarity(vec_a, vec_b)

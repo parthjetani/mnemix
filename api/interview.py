@@ -151,7 +151,6 @@ async def get_evaluation(
         return {"status": session.status, "message": f"Session is {session.status}"}
 
     answers = await get_session_answers(session_id, db)
-    import json
     from models.schemas import EvaluationResult
 
     evaluations = []

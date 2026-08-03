@@ -1,5 +1,4 @@
 import re
-from datetime import datetime, timezone
 
 from llm.embeddings import aembed, cosine_similarity
 
@@ -12,16 +11,6 @@ _TOPIC_CHANGE_RE = re.compile(
 MIN_WORDS = 30
 EMBED_SPLIT_THRESHOLD = 0.70  # cosine distance above this → new segment (conservative)
 MIN_MESSAGES_FOR_EMBED_SPLIT = 5  # only use embedding split on larger groups
-TIME_GAP_HOURS = 24
-
-
-def _parse_ts(ts_str: str | None) -> datetime | None:
-    if not ts_str:
-        return None
-    try:
-        return datetime.fromisoformat(ts_str)
-    except Exception:
-        return None
 
 
 def _word_count(messages: list[str]) -> int:

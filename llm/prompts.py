@@ -54,57 +54,6 @@ Return valid JSON only. No explanation. No markdown fences.
 {{"memories": []}}"""
 
 
-PROFILE_PROMPT = """You are synthesizing a professional profile for a {field} engineer based on their extracted memories.
-
-MEMORY SUMMARY (categories and counts):
-{memory_summary}
-
-SAMPLE MEMORIES:
-{sample_memories}
-
-Synthesize a profile that captures:
-1. communication_style: How this person communicates (direct/verbose, data-driven, technical depth)
-2. strength_areas: Categories where they have 3+ strong memories
-3. gap_areas: Categories with 0-1 memories
-4. career_narrative: A 2-sentence professional summary in their voice
-
-Return valid JSON only. No explanation. No markdown fences.
-{{
-  "communication_style": "description",
-  "strength_areas": ["category1", "category2"],
-  "gap_areas": ["category1", "category2"],
-  "career_narrative": "2-sentence summary"
-}}"""
-
-
-Q_BEHAVIORAL_PROMPT = """Generate one specific behavioral interview question targeting the category: {category}
-
-Context about this candidate:
-{profile_summary}
-
-The question must:
-- Start with "Tell me about a time..." or "Describe a situation where..."
-- Be specific enough to surface a real story
-- Be appropriate for a mid-to-senior software/tech professional
-- NOT be generic ("Tell me about a challenge") — be specific to the category
-
-Return only the question text. No explanation."""
-
-
-Q_TECHNICAL_PROMPT = """Generate one specific technical interview question for:
-Category: {category}
-Tech stack: {stack}
-Seniority: {seniority}
-
-The question must:
-- Be specific to the listed stack and seniority level
-- Test real understanding, not trivia
-- Be open-ended enough to allow discussion of trade-offs
-- Sound like a real interviewer would ask it
-
-Return only the question text. No explanation."""
-
-
 EVALUATION_PROMPT = """You are evaluating an interview answer for a {field} professional targeting {seniority}-level roles.
 
 USER'S RELEVANT MEMORIES (their real experiences):

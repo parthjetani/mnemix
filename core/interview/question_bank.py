@@ -1,7 +1,7 @@
 import json
 import random
 from pathlib import Path
-from sqlalchemy import select, func, text
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import QuestionORM

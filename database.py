@@ -2,17 +2,16 @@ import asyncio
 import ssl
 from sqlalchemy import (
     Column, Text, Integer, Float, LargeBinary, Boolean,
-    ForeignKey, String, text,
+    ForeignKey, text,
 )
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from pgvector.sqlalchemy import Vector
 
 from config import settings
 
 
-# Supabase uses its own CA not in the system bundle. CERT_NONE is intentional
-# here — this is a private DB connection, not a public HTTPS endpoint.
+# CERT_NONE intentional: Supabase's CA isn't in the system bundle, and this is a private DB connection.
 _ssl_ctx = ssl.create_default_context()
 _ssl_ctx.check_hostname = False
 _ssl_ctx.verify_mode = ssl.CERT_NONE

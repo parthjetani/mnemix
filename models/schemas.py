@@ -82,22 +82,6 @@ class Question(BaseModel):
     created_at: Optional[str] = None
 
 
-# ─── Ingestion Job ────────────────────────────────────────────────────────────
-
-class IngestionJob(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: str
-    source_type: str
-    status: str = "pending"
-    total_segments: int = 0
-    processed: int = 0
-    memories_found: int = 0
-    started_at: Optional[str] = None
-    completed_at: Optional[str] = None
-    error_message: Optional[str] = None
-
-
 # ─── User Profile ─────────────────────────────────────────────────────────────
 
 class UserProfile(BaseModel):

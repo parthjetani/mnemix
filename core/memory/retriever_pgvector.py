@@ -1,16 +1,4 @@
-"""pgvector-backed retriever — replacement for the in-memory numpy retriever.
-
-WIRED. main.py imports memory_retriever from this module. To remove the
-legacy numpy retriever entirely:
-  1. Verify search quality matches expectations on real data.
-  2. Drop core/memory/retriever.py.
-  3. Stop dual-writing in core/memory/store.save_memory (remove the
-     BYTEA `embedding` write).
-  4. Drop the `embedding` BYTEA column from the schema.
-
-Multi-worker note: unlike the numpy retriever, this implementation is
-process-stateless — multiple uvicorn workers behave correctly.
-"""
+"""pgvector-backed retriever — process-stateless replacement for the deprecated numpy retriever."""
 from __future__ import annotations
 
 import numpy as np
@@ -22,12 +10,6 @@ from models.schemas import Memory as MemorySchema
 
 
 class PgvectorRetriever:
-    async def load(self, db: AsyncSession) -> None:  # noqa: ARG002 — signature parity
-        """No-op. pgvector has no warm-up index to populate."""
-
-    def invalidate(self) -> None:
-        """No-op. State lives in Postgres."""
-
     async def add_to_index(
         self,
         memory_id: str,  # noqa: ARG002 — store.save_memory writes embedding_vec inline

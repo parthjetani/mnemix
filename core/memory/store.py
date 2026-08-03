@@ -6,7 +6,6 @@ import numpy as np
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from config import settings
 from database import MemoryORM
 from models.schemas import Memory as MemorySchema, MemoryCreate
 
@@ -58,29 +57,6 @@ async def get_all_memories(
         embedding = np.frombuffer(row.embedding, dtype=np.float32).copy()
         out.append((schema, embedding))
     return out
-
-
-async def get_memories_by_category(
-    category: str,
-    db: AsyncSession,
-    user_id: str | None = None,
-) -> list[MemorySchema]:
-    stmt = select(MemoryORM).where(MemoryORM.category == category)
-    if user_id is not None:
-        stmt = stmt.where(MemoryORM.user_id == user_id)
-    result = await db.execute(stmt)
-    return [_orm_to_schema(r) for r in result.scalars().all()]
-
-
-async def get_memory_by_id(
-    memory_id: str,
-    db: AsyncSession,
-) -> MemorySchema | None:
-    result = await db.execute(
-        select(MemoryORM).where(MemoryORM.id == memory_id)
-    )
-    row = result.scalar_one_or_none()
-    return _orm_to_schema(row) if row else None
 
 
 async def count_memories_by_category(

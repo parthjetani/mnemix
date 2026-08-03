@@ -25,7 +25,7 @@ MNEMIX ingests your documents, classifies and extracts professional memories, th
 
 ## Quickstart
 
-**Prerequisites:** Python 3.11+, a [Groq API key](https://console.groq.com) (free), an [OpenRouter API key](https://openrouter.ai) (free).
+**Prerequisites:** Python 3.11+, a [Groq API key](https://console.groq.com) (free, required). Optional: an [NVIDIA NIM key](https://build.nvidia.com/settings/api-keys) and a [Gemini key](https://aistudio.google.com/apikey) (both free) add extra fallback tiers.
 
 ```powershell
 # 1. Clone and install
@@ -37,7 +37,7 @@ pip install -r requirements.txt
 
 # 2. Configure
 copy .env.example .env
-# Edit .env: add GROQ_API_KEY and OPENROUTER_API_KEY
+# Edit .env: add GROQ_API_KEY (NVIDIA_API_KEY/GEMINI_API_KEY optional)
 
 # 3. Start the server (Terminal 1)
 .\venv\Scripts\python -m uvicorn main:app
@@ -75,8 +75,7 @@ copy .env.example .env
 | CLI | Typer + Rich |
 | Database | Supabase PostgreSQL + asyncpg + SQLAlchemy 2.0 async |
 | Embeddings | sentence-transformers `all-MiniLM-L6-v2` (local, free) |
-| LLM (primary) | Groq — `llama-3.3-70b-versatile`, `qwen3-32b`, `gpt-oss-20b` |
-| LLM (fallback) | OpenRouter free tier |
+| LLM | Groq + NVIDIA NIM + Gemini — per-task provider chains with quota-aware fallback |
 | Similarity search | pgvector `<=>` cosine distance + HNSW index |
 
 All LLM calls go through a single router (`llm/router.py`). Embeddings run locally — no text is sent to external APIs for embedding.

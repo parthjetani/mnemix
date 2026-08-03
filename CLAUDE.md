@@ -70,7 +70,7 @@ INGESTION LAYER
 └── Gemini Parser (Google Takeout JSON)
         ↓
 PROCESSING PIPELINE
-├── Segmenter (split conversations by topic/time)
+├── Segmenter (split conversations by topic)
 ├── Classifier (professional vs personal vs behavioral)
 └── Extractor (LLM → structured memory objects)
         ↓
@@ -220,38 +220,27 @@ httpx            — async HTTP client
 
 **Task → Model → Provider**
 
+Each task routes through an ordered provider chain (see `TASK_CHAINS` in `llm/router.py`), not a single provider. Chain slots with no API key configured are skipped without a network call.
+
 ```python
 # Classification (professional vs personal)
-# Rule-based Python first (free). Groq only for ambiguous cases.
-CLASSIFY:       llama-3.3-70b-versatile    Groq (primary)
+# Rule-based Python first (free). LLM only for ambiguous cases.
+CLASSIFY:       Groq llama-3.1-8b-instant → Gemini gemma-4-31b-it → NIM meta/llama-3.1-8b-instruct
 
 # Memory extraction from conversation segments
-EXTRACT:        llama-3.3-70b-versatile    Groq
-
-# User profile synthesis
-PROFILE:        llama-3.3-70b-versatile    Groq
-
-# Behavioral question generation
-Q_BEHAVIORAL:   openai/gpt-oss-20b         Groq (OpenAI-compat model)
-
-# Technical question generation (reasoning model — strips <think> blocks)
-Q_TECHNICAL:    qwen/qwen3-32b             Groq
+EXTRACT:        NIM deepseek-ai/deepseek-v4-flash → Gemini gemini-3.5-flash-lite → Groq llama-3.3-70b-versatile
 
 # Behavioral + coding answer evaluation
-EVAL:           llama-3.3-70b-versatile    Groq
+EVAL:           NIM moonshotai/kimi-k2-thinking → Groq llama-3.3-70b-versatile
 
 # System design evaluation (reasoning heavy)
-EVAL_SYSDESIGN: qwen/qwen3-32b             Groq
+EVAL_SYSDESIGN: NIM moonshotai/kimi-k2-thinking → Groq qwen/qwen3-32b
 
 # Feedback report generation (user-facing)
-FEEDBACK:       llama-3.3-70b-versatile    Groq
+FEEDBACK:       NIM moonshotai/kimi-k2-thinking → Gemini gemini-3.5-flash-lite → Groq llama-3.3-70b-versatile
 
 # Gap analysis
-GAP_ANALYSIS:   qwen/qwen3-32b             Groq
-
-# Fallback when Groq fails
-FALLBACK_REASONING: deepseek/deepseek-r1:free   OpenRouter
-FALLBACK_GENERAL:   meta-llama/llama-3.3-70b-instruct:free  OpenRouter
+GAP_ANALYSIS:   Groq qwen/qwen3-32b → NIM meta/llama-3.1-8b-instruct
 
 # Embeddings — LOCAL, no API call
 EMBEDDINGS:     all-MiniLM-L6-v2           sentence-transformers (free)
@@ -260,25 +249,23 @@ EMBEDDINGS:     all-MiniLM-L6-v2           sentence-transformers (free)
 ### API Clients Setup
 
 ```python
-# Groq — primary provider, OpenAI-compatible
+# Three OpenAI-compatible clients — no single "primary" provider, each task has its own chain
 from openai import AsyncOpenAI
-groq_client = AsyncOpenAI(
-    api_key=settings.GROQ_API_KEY,
-    base_url="https://api.groq.com/openai/v1",
-)
-
-# OpenRouter — fallback when Groq raises an error
-openrouter_client = AsyncOpenAI(
-    api_key=settings.OPENROUTER_API_KEY,
-    base_url="https://openrouter.ai/api/v1",
-)
+groq_client = AsyncOpenAI(api_key=settings.GROQ_API_KEY, base_url=settings.GROQ_BASE_URL)
+nvidia_client = AsyncOpenAI(api_key=settings.NVIDIA_API_KEY or "unset", base_url=settings.NVIDIA_BASE_URL)
+gemini_client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY or "unset", base_url=settings.GEMINI_BASE_URL)
 ```
 
 ### Free Tier Status
 ```
-Groq:       No credit card needed. 14,400 req/day free. Permanent.
-OpenRouter: Free tier on :free models (50 req/day per model). Backup only.
+Groq:   No credit card needed. 8B-class models: 14,400 req/day. llama-3.3-70b-versatile: ~1,000 req/day.
+NVIDIA: NIM free tier via build.nvidia.com. Optional — chain slots skip cleanly if NVIDIA_API_KEY unset.
+Gemini: Free tier via aistudio.google.com. Optional — chain slots skip cleanly if GEMINI_API_KEY unset.
 ```
+
+### Quota Tracking
+
+`llm/router.py` has an in-process `QuotaTracker` per (provider, model): an RPM sliding window (60s) plus an RPD daily counter with date-rollover. `LLMRouter.call()` walks a task's chain, skips any slot whose tracker reports exhausted, and on a live `RateLimitError` marks that slot exhausted for the rest of the day (respecting `Retry-After`, capped at 5s) before falling through to the next slot in the chain. This state is in-process only — correct for the current single-process local deployment, not for multi-worker/multi-pod (would need a Redis-backed counter to scale out).
 
 ---
 
@@ -728,24 +715,31 @@ These are non-negotiable. Follow them exactly:
 `.env` file structure:
 
 ```env
-# Groq — primary LLM provider (free, no credit card)
+# Groq — required (free, no credit card)
 GROQ_API_KEY=gsk_...
 
-# OpenRouter — fallback provider (free tier)
-OPENROUTER_API_KEY=sk-or-...
+# NVIDIA NIM — optional, adds a fallback tier to several chains
+NVIDIA_API_KEY=
 
-# Models (change via .env, not in code)
-MODEL_CLASSIFY=llama-3.3-70b-versatile
+# Gemini (OpenAI-compat) — optional, adds a fallback tier to several chains
+GEMINI_API_KEY=
+
+# Models — Groq tier (change via .env, not in code)
+MODEL_CLASSIFY=llama-3.1-8b-instant
 MODEL_EXTRACT=llama-3.3-70b-versatile
-MODEL_PROFILE=llama-3.3-70b-versatile
-MODEL_Q_BEHAVIORAL=openai/gpt-oss-20b
-MODEL_Q_TECHNICAL=qwen/qwen3-32b
 MODEL_EVAL=llama-3.3-70b-versatile
 MODEL_EVAL_SYSDESIGN=qwen/qwen3-32b
 MODEL_FEEDBACK=llama-3.3-70b-versatile
 MODEL_GAP_ANALYSIS=qwen/qwen3-32b
-MODEL_FALLBACK_REASONING=deepseek/deepseek-r1:free
-MODEL_FALLBACK_GENERAL=meta-llama/llama-3.3-70b-instruct:free
+
+# Models — NVIDIA NIM tier
+MODEL_NIM_CLASSIFY=meta/llama-3.1-8b-instruct
+MODEL_NIM_EXTRACT=deepseek-ai/deepseek-v4-flash
+MODEL_NIM_REASONING=moonshotai/kimi-k2-thinking
+
+# Models — Gemini tier
+MODEL_GEMINI_FLASH_LITE=gemini-3.5-flash-lite
+MODEL_GEMMA4=gemma-4-31b-it
 
 # Database (Supabase PostgreSQL — password URL-encoded, REQUIRED)
 DATABASE_URL=postgresql+asyncpg://postgres:YOUR-PASSWORD@db.YOUR-PROJECT.supabase.co:5432/postgres
@@ -836,7 +830,7 @@ pgvector                       — vector type for SQLAlchemy
 slowapi                        — rate limiting
 pymupdf                        — PDF parsing
 sentence-transformers          — local embeddings
-openai                         — OpenAI-compatible SDK (Groq + OpenRouter)
+openai                         — OpenAI-compatible SDK (Groq + NVIDIA NIM + Gemini)
 httpx                          — async HTTP client (CLI + auth)
 python-multipart               — file upload parsing
 numpy                          — embedding math
@@ -892,6 +886,27 @@ Reason:   Parth's explicit requirement. Evaluation after all answers, not during
 Decision: Pre-generate all 8 questions before interview starts
 Reason:   Core latency strategy. 5-second wait upfront vs 3-second wait per question.
           Total wait is similar but perceived flow is much better.
+
+Decision: Multi-provider TASK_CHAINS router (Groq + NVIDIA NIM + Gemini), OpenRouter removed
+Reason:   MODEL_CLASSIFY was pinned to llama-3.3-70b-versatile (~1,000 req/day on Groq
+          free tier) despite classify running on every raw segment — the highest-volume
+          task. Fixed by moving classify to llama-3.1-8b-instant (14,400 req/day) and,
+          more broadly, replacing the single Groq-primary/OpenRouter-fallback router with
+          per-task provider chains so no one task is single-point-of-failure on one
+          free-tier cap. NVIDIA_API_KEY/GEMINI_API_KEY are optional — a chain slot with
+          no key configured is skipped without a network call, so this degrades cleanly
+          to Groq-only if those keys are never added.
+
+Decision: Removed PROFILE / Q_BEHAVIORAL / Q_TECHNICAL task chains, prompts, and model config
+Reason:   Audit found these were never invoked anywhere in the codebase — profile is plain
+          manual CRUD (api/profile.py, no LLM synthesis), and interview questions come
+          entirely from the static seeded question bank (core/interview/question_bank.py,
+          no LLM generation). Removed the dead TASK_CHAINS entries from llm/router.py, the
+          unused PROFILE_PROMPT/Q_BEHAVIORAL_PROMPT/Q_TECHNICAL_PROMPT from llm/prompts.py,
+          and the corresponding MODEL_PROFILE/MODEL_Q_BEHAVIORAL/MODEL_Q_TECHNICAL/
+          MODEL_NIM_PROFILE/MODEL_NIM_CODER settings from config.py and .env(.example).
+          If AI-generated questions or AI profile synthesis becomes a real feature later,
+          reintroduce these deliberately rather than leaving them as unwired scaffolding.
 ```
 
 ---

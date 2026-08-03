@@ -4,8 +4,9 @@
 
 - Python 3.11+ (tested on 3.14.4)
 - Windows 11 or Linux/macOS
-- Groq API key (free — [console.groq.com](https://console.groq.com))
-- OpenRouter API key (free tier — [openrouter.ai](https://openrouter.ai))
+- Groq API key (free — [console.groq.com](https://console.groq.com)) — required
+- NVIDIA NIM API key (free — [build.nvidia.com/settings/api-keys](https://build.nvidia.com/settings/api-keys)) — optional, adds a fallback tier
+- Gemini API key (free — [aistudio.google.com/apikey](https://aistudio.google.com/apikey)) — optional, adds a fallback tier
 - Supabase project with PostgreSQL database (free tier is sufficient)
 
 ## Installation
@@ -37,7 +38,10 @@ Edit `.env`:
 
 ```env
 GROQ_API_KEY=gsk_your_key_here
-OPENROUTER_API_KEY=sk-or-your_key_here
+
+# Optional — leave blank to skip these chain slots entirely
+NVIDIA_API_KEY=
+GEMINI_API_KEY=
 ```
 
 All other values have working defaults. See [CONFIGURATION.md](CONFIGURATION.md) for the full reference.
@@ -160,7 +164,7 @@ TRUNCATE memories, interview_sessions, session_answers, ingestion_jobs, user_pro
 Run `pip install -r requirements.txt` inside the activated venv.
 
 **`ValidationError` on startup**
-Your `.env` is missing a required key. Check that `GROQ_API_KEY`, `OPENROUTER_API_KEY`, and `DATABASE_URL` are all set.
+Your `.env` is missing a required key. Check that `GROQ_API_KEY` and `DATABASE_URL` are set (`NVIDIA_API_KEY`/`GEMINI_API_KEY` are optional).
 
 **CLI returns 401 Unauthorized**
 All API endpoints require a Supabase JWT. For local development, set `DEBUG=true` in `.env` and add the header `Authorization: Bearer dev-local` to your requests. The web UI handles auth automatically; the CLI does not yet pass auth headers.

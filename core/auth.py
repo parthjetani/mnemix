@@ -13,8 +13,7 @@ async def get_current_user(authorization: str = Header(default=None)) -> dict:
     if not token:
         raise HTTPException(status_code=401, detail={"error": "Empty token"})
 
-    # Dev bypass — localhost testing only; gated behind DEBUG so it can't fire
-    # accidentally in a deployed environment.
+    # Dev bypass, gated behind DEBUG so it can't fire in a deployed environment.
     if settings.DEBUG and token == "dev-local":
         return {"id": "dev-user", "email": "dev@localhost"}
 

@@ -3,9 +3,7 @@ import numpy as np
 from config import settings
 
 _model = None
-# Per-process embedding cache. Each uvicorn worker holds its own dict, which is
-# why we recommend single-worker until pgvector lands (see core/memory/retriever).
-_cache: dict[str, np.ndarray] = {}
+_cache: dict[str, np.ndarray] = {}  # per-process; each uvicorn worker holds its own
 
 
 def _get_model():
@@ -25,28 +23,6 @@ def embed(text: str) -> np.ndarray:
     return vector
 
 
-def embed_batch(texts: list[str]) -> list[np.ndarray]:
-    results: list[np.ndarray | None] = [None] * len(texts)
-    uncached_indices = []
-    uncached_texts = []
-
-    for i, text in enumerate(texts):
-        if text in _cache:
-            results[i] = _cache[text]
-        else:
-            uncached_indices.append(i)
-            uncached_texts.append(text)
-
-    if uncached_texts:
-        model = _get_model()
-        vectors = model.encode(uncached_texts, convert_to_numpy=True).astype(np.float32)
-        for i, (idx, text) in enumerate(zip(uncached_indices, uncached_texts)):
-            _cache[text] = vectors[i]
-            results[idx] = vectors[i]
-
-    return results  # type: ignore[return-value]
-
-
 def cosine_similarity(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-10))
 
@@ -56,8 +32,3 @@ async def aembed(text: str) -> np.ndarray:
     if text in _cache:
         return _cache[text]
     return await asyncio.get_running_loop().run_in_executor(None, embed, text)
-
-
-async def aembed_batch(texts: list[str]) -> list[np.ndarray]:
-    """Async wrapper for embed_batch — offloaded to a thread."""
-    return await asyncio.get_running_loop().run_in_executor(None, embed_batch, texts)

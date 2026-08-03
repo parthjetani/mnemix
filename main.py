@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -12,13 +11,12 @@ from slowapi.middleware import SlowAPIMiddleware
 from config import settings
 from core.logging_config import configure_logging, configure_sentry
 from core.rate_limit import limiter
-from database import init_db, get_db
+from database import init_db
 
 configure_logging(settings.LOG_LEVEL)
 configure_sentry()
 from llm.embeddings import embed
 from core.interview.question_bank import load_questions
-from core.memory.retriever_pgvector import memory_retriever
 from api.ingest import router as ingest_router
 from api.memory import router as memory_router
 from api.interview import router as interview_router
@@ -62,8 +60,7 @@ async def health():
 
 @app.get("/config.js")
 async def frontend_config():
-    """Server-rendered frontend config so Supabase URL/anon-key live in one place,
-    not duplicated across every HTML file."""
+    """Server-rendered so Supabase URL/anon-key live in one place, not duplicated per HTML file."""
     body = (
         "window.MNEMIX_CONFIG = "
         + _json_encode({
