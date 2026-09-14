@@ -59,6 +59,18 @@ async def get_all_memories(
     return out
 
 
+async def get_memories_by_category(
+    category: str,
+    db: AsyncSession,
+    user_id: str | None = None,
+) -> list[MemorySchema]:
+    stmt = select(MemoryORM).where(MemoryORM.category == category)
+    if user_id is not None:
+        stmt = stmt.where(MemoryORM.user_id == user_id)
+    result = await db.execute(stmt)
+    return [_orm_to_schema(r) for r in result.scalars().all()]
+
+
 async def count_memories_by_category(
     db: AsyncSession,
     user_id: str | None = None,

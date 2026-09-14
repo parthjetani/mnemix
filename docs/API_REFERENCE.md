@@ -136,7 +136,11 @@ Returns memory counts by category and user profile.
   "profile": {
     "field": "software_engineering",
     "seniority": "mid",
-    "career_narrative": null
+    "career_narrative": null,
+    "primary_stack": [],
+    "communication_style": null,
+    "strength_areas": [],
+    "gap_areas": []
   }
 }
 ```
@@ -241,6 +245,58 @@ Semantic search over stored memories.
 
 ---
 
+## Profile
+
+### `GET /api/v1/profile`
+
+Returns the current user's profile. Returns a row of defaults if none exists yet.
+
+**Response `200`:**
+```json
+{
+  "field": "software_engineering",
+  "seniority": "mid",
+  "primary_stack": ["Python", "FastAPI"],
+  "target_roles": ["Backend Engineer"],
+  "communication_style": "Direct, technical, references specific metrics",
+  "strength_areas": ["technical_achievement", "debugging"],
+  "gap_areas": ["conflict_resolution"],
+  "career_narrative": "Backend engineer who has shipped FastAPI + Supabase systems...",
+  "last_updated": "2026-05-18T12:00:00+00:00"
+}
+```
+
+---
+
+### `PUT /api/v1/profile`
+
+Manually update profile fields. Accepts a partial body — only provided keys are changed.
+
+**Request body (all optional):**
+```json
+{
+  "field": "software_engineering",
+  "seniority": "senior",
+  "primary_stack": ["Python", "FastAPI", "PostgreSQL"],
+  "target_roles": ["Backend Engineer", "Platform Engineer"],
+  "career_narrative": "..."
+}
+```
+
+**Response `200`:** Same shape as `GET /api/v1/profile`.
+
+---
+
+### `POST /api/v1/profile/synthesize`
+
+Runs LLM-based profile synthesis (`profile` task) over the user's stored memories, populating `communication_style`, `strength_areas`, `gap_areas`, and `career_narrative`. Called automatically when an ingestion job completes; can also be triggered manually (e.g. a "Regenerate Profile" button).
+
+Rate limited to 10 requests/hour. If there are no memories yet, returns the profile unchanged without making an LLM call. If every provider in the `profile` task chain fails, falls back to a heuristic derived from memory category counts (`strength_areas` = categories with 3+ memories, `gap_areas` = categories with 0-1) rather than leaving fields empty.
+
+**Response `200`:** Same shape as `GET /api/v1/profile`.
+
+---
+
 ## Interview
 
 ### `POST /api/v1/interview/start`
@@ -272,6 +328,8 @@ Start a new mock interview session.
   }
 }
 ```
+
+The opener, gap-filling, and one wildcard question always come from the static seeded question bank. The remaining session-type-specific questions are generated per-user via the `q_behavioral`/`q_technical` LLM tasks (in parallel, before the session starts) and marked `"source": "llm_generated"` in each `Question` object; any category where generation fails falls back to a seeded question instead.
 
 **Response `500`:** No questions in the database. Restart the server to trigger the seed.
 

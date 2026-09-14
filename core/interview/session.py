@@ -18,7 +18,7 @@ async def create_session(
     session_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
 
-    questions_list = [{"id": q.id, "text": q.text, "category": q.category} for q in questions]
+    questions_list = [{"id": q.id, "text": q.text, "category": q.category, "source": q.source} for q in questions]
 
     orm = InterviewSessionORM(
         id=session_id,

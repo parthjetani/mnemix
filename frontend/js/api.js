@@ -71,6 +71,7 @@ const API = {
   // ── Profile ───────────────────────────────────────────────
   async getUserProfile()     { return this.get('/profile'); },
   async updateUserProfile(d) { return this.put('/profile', d); },
+  async synthesizeProfile()  { return this.post('/profile/synthesize', {}); },
 
   // ── Ingestion ─────────────────────────────────────────────
   async ingestResume(file) {

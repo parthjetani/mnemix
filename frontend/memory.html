@@ -116,10 +116,29 @@
                   <span class="badge badge-brand" x-text="profile.field || 'No field'"></span>
                   <span class="badge badge-neutral" x-text="profile.seniority || 'No seniority'"></span>
                   <span class="text-sm text-tertiary font-mono" x-text="`${profile.total_memories} total memories`"></span>
+                  <button class="btn btn-secondary btn-sm ml-auto" @click="regenerateProfile()" :disabled="regeneratingProfile">
+                    <span x-show="regeneratingProfile" class="spinner" style="width:12px;height:12px;border-width:2px;"></span>
+                    <span x-text="regeneratingProfile ? 'Regenerating…' : 'Regenerate Profile'"></span>
+                  </button>
                 </div>
 
                 <template x-if="profile.career_narrative">
-                  <p class="text-sm text-secondary mb-6" style="font-style:italic;" x-text="profile.career_narrative"></p>
+                  <p class="text-sm text-secondary mb-4" style="font-style:italic;" x-text="profile.career_narrative"></p>
+                </template>
+
+                <template x-if="profile.communication_style">
+                  <p class="text-sm text-secondary mb-4"><span class="text-tertiary">Communication style:</span> <span x-text="profile.communication_style"></span></p>
+                </template>
+
+                <template x-if="(profile.strength_areas || []).length || (profile.gap_areas || []).length">
+                  <div class="flex flex-wrap gap-2 mb-6">
+                    <template x-for="cat in (profile.strength_areas || [])" :key="'strength-' + cat">
+                      <span class="badge badge-success" x-text="Utils.categoryLabel(cat)"></span>
+                    </template>
+                    <template x-for="cat in (profile.gap_areas || [])" :key="'gap-' + cat">
+                      <span class="badge badge-danger" x-text="Utils.categoryLabel(cat)"></span>
+                    </template>
+                  </div>
                 </template>
 
                 <div class="section-title mb-3">Category Coverage</div>
@@ -352,6 +371,7 @@
       searchQuery: '',
       filterCategory: 'all',
       searching: false,
+      regeneratingProfile: false,
       answeringGap: null,
       answerText: '',
       savingAnswer: false,
@@ -391,7 +411,9 @@
             API.getProfile(),
             API.getGaps(),
           ]);
-          this.profile = profileData;
+          // Flatten the nested `profile` sub-object so field/seniority/career_narrative/
+          // communication_style/strength_areas/gap_areas are directly accessible.
+          this.profile = { ...profileData, ...(profileData.profile || {}) };
           this.gaps = gapsData.gaps || [];
           this.buildCategories();
           // Load initial browse memories
@@ -411,6 +433,19 @@
           have: byCat[name] || 0,
           need: this.requiredCategories[name],
         }));
+      },
+
+      async regenerateProfile() {
+        this.regeneratingProfile = true;
+        try {
+          await API.synthesizeProfile();
+          await this.loadData();
+          Utils.toast('Profile updated', 'success');
+        } catch (err) {
+          this.handleError(err, 'Failed to regenerate profile');
+        } finally {
+          this.regeneratingProfile = false;
+        }
       },
 
       async searchMemories() {

@@ -65,7 +65,7 @@ async def start_interview(
     db: AsyncSession = Depends(get_db),
     ctx: UserContext = Depends(get_user_context),
 ):
-    questions = await select_questions(body.session_type, db, count=8)
+    questions = await select_questions(body.session_type, db, count=8, user_id=ctx.user_id)
     if not questions:
         raise HTTPException(status_code=500, detail="No questions available — seed the question bank first")
 

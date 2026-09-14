@@ -1,3 +1,4 @@
+import asyncio
 import json
 import random
 from pathlib import Path
@@ -7,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import QuestionORM
 from models.schemas import Question
 from core.memory.gap_detector import detect_gaps
+from core.user_context import UserContext, get_user_profile_orm
+from core.interview.question_generator import generate_behavioral_question, generate_technical_question
 
 _SEED_PATH = Path(__file__).parent.parent.parent / "data" / "questions_seed.json"
 
@@ -66,6 +69,7 @@ async def select_questions(
     session_type: str,
     db: AsyncSession,
     count: int = 8,
+    user_id: str | None = None,
 ) -> list[Question]:
     selected: list[Question] = []
     used_ids: set[str] = set()
@@ -96,13 +100,30 @@ async def select_questions(
         pool = BEHAVIORAL_CATEGORIES + TECHNICAL_CATEGORIES
 
     random.shuffle(pool)
-    for cat in pool:
-        if len(selected) >= count - 1:
-            break
-        q = await _random_question_by_category(cat, db, used_ids)
-        if q:
-            selected.append(q)
-            used_ids.add(q.id)
+    remaining_slots = max(0, (count - 1) - len(selected))
+    categories_to_fill = pool[:remaining_slots]
+
+    if user_id is not None and categories_to_fill:
+        # Pre-generate all LLM questions for this session in parallel (CLAUDE.md
+        # "Pre-Generation" latency strategy) before falling back per-category.
+        profile_row = await get_user_profile_orm(UserContext(user_id=user_id), db)
+        generated = await asyncio.gather(*[
+            generate_technical_question(cat, profile_row) if cat in TECHNICAL_CATEGORIES
+            else generate_behavioral_question(cat, profile_row)
+            for cat in categories_to_fill
+        ])
+        for cat, q in zip(categories_to_fill, generated):
+            if q is None:
+                q = await _random_question_by_category(cat, db, used_ids)
+            if q:
+                selected.append(q)
+                used_ids.add(q.id)
+    else:
+        for cat in categories_to_fill:
+            q = await _random_question_by_category(cat, db, used_ids)
+            if q:
+                selected.append(q)
+                used_ids.add(q.id)
 
     # 4. Random wildcard — keep it unpredictable
     all_cats = BEHAVIORAL_CATEGORIES + TECHNICAL_CATEGORIES + IDENTITY_CATEGORIES

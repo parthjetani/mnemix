@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     # Models — Groq tier
     MODEL_CLASSIFY: str = "llama-3.1-8b-instant"          # rule-based first, LLM for ambiguous — 8B tier for 14.4K RPD
     MODEL_EXTRACT: str = "llama-3.3-70b-versatile"        # quality extraction
+    MODEL_PROFILE: str = "llama-3.3-70b-versatile"        # one-time profile synthesis
+    MODEL_Q_BEHAVIORAL: str = "openai/gpt-oss-20b"        # 886 tok/s, fastest
+    MODEL_Q_TECHNICAL: str = "qwen/qwen3-32b"             # domain knowledge
     MODEL_EVAL: str = "llama-3.3-70b-versatile"           # answer evaluation
     MODEL_EVAL_SYSDESIGN: str = "qwen/qwen3-32b"          # reasoning-heavy eval
     MODEL_FEEDBACK: str = "llama-3.3-70b-versatile"       # user-facing quality
@@ -27,7 +30,9 @@ class Settings(BaseSettings):
     # Models — NVIDIA NIM tier
     MODEL_NIM_CLASSIFY: str = "meta/llama-3.1-8b-instruct"
     MODEL_NIM_EXTRACT: str = "deepseek-ai/deepseek-v4-flash"
+    MODEL_NIM_PROFILE: str = "deepseek-ai/deepseek-v4-pro"
     MODEL_NIM_REASONING: str = "moonshotai/kimi-k2-thinking"
+    MODEL_NIM_CODER: str = "qwen/qwen3-coder-480b-a35b-instruct"
 
     # Models — Gemini tier
     MODEL_GEMINI_FLASH_LITE: str = "gemini-3.5-flash-lite"

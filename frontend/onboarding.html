@@ -427,6 +427,9 @@
             if (updated.status === 'complete' || updated.status === 'failed') {
               clearInterval(this.pollingTimers[type]);
               delete this.pollingTimers[type];
+              if (updated.status === 'complete') {
+                API.synthesizeProfile().catch(() => { /* non-critical */ });
+              }
             }
           } catch { /* ignore */ }
         }, 3000);

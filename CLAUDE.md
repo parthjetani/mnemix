@@ -140,12 +140,14 @@ mnemix/
 │   │   ├── store.py                  ← Save/retrieve memories from PostgreSQL
 │   │   ├── retriever.py              ← DEPRECATED (numpy, kept for rollback only)
 │   │   ├── retriever_pgvector.py     ← Active retriever — pgvector SQL search
-│   │   └── gap_detector.py           ← Find missing interview categories
+│   │   ├── gap_detector.py           ← Find missing interview categories
+│   │   └── profile_synthesizer.py    ← LLM profile synthesis (profile task)
 │   │
 │   └── interview/
 │       ├── __init__.py
 │       ├── session.py           ← Session state management
 │       ├── question_bank.py     ← Load + select questions
+│       ├── question_generator.py ← LLM question generation (q_behavioral/q_technical)
 │       ├── evaluator.py         ← Score answers silently
 │       └── feedback.py          ← Generate feedback report
 │
@@ -158,7 +160,7 @@ mnemix/
 │   ├── ingest.py               ← POST /ingest/resume, /ingest/ai-export
 │   ├── memory.py               ← GET /memory/profile, /memory/gaps, /memory/search
 │   ├── interview.py            ← POST /interview/start, /interview/answer
-│   ├── profile.py              ← GET/PUT /profile
+│   ├── profile.py              ← GET/PUT /profile, POST /profile/synthesize
 │   └── chat.py                 ← POST /chat
 │
 ├── data/
@@ -229,6 +231,15 @@ CLASSIFY:       Groq llama-3.1-8b-instant → Gemini gemma-4-31b-it → NIM meta
 
 # Memory extraction from conversation segments
 EXTRACT:        NIM deepseek-ai/deepseek-v4-flash → Gemini gemini-3.5-flash-lite → Groq llama-3.3-70b-versatile
+
+# User profile synthesis
+PROFILE:        NIM deepseek-ai/deepseek-v4-pro → Gemini gemini-3.5-flash-lite → Groq llama-3.3-70b-versatile
+
+# Behavioral question generation
+Q_BEHAVIORAL:   Groq openai/gpt-oss-20b → NIM meta/llama-3.1-8b-instruct
+
+# Technical question generation (reasoning model — strips <think> blocks)
+Q_TECHNICAL:    Groq qwen/qwen3-32b → NIM qwen/qwen3-coder-480b-a35b-instruct
 
 # Behavioral + coding answer evaluation
 EVAL:           NIM moonshotai/kimi-k2-thinking → Groq llama-3.3-70b-versatile
@@ -727,6 +738,9 @@ GEMINI_API_KEY=
 # Models — Groq tier (change via .env, not in code)
 MODEL_CLASSIFY=llama-3.1-8b-instant
 MODEL_EXTRACT=llama-3.3-70b-versatile
+MODEL_PROFILE=llama-3.3-70b-versatile
+MODEL_Q_BEHAVIORAL=openai/gpt-oss-20b
+MODEL_Q_TECHNICAL=qwen/qwen3-32b
 MODEL_EVAL=llama-3.3-70b-versatile
 MODEL_EVAL_SYSDESIGN=qwen/qwen3-32b
 MODEL_FEEDBACK=llama-3.3-70b-versatile
@@ -735,7 +749,9 @@ MODEL_GAP_ANALYSIS=qwen/qwen3-32b
 # Models — NVIDIA NIM tier
 MODEL_NIM_CLASSIFY=meta/llama-3.1-8b-instruct
 MODEL_NIM_EXTRACT=deepseek-ai/deepseek-v4-flash
+MODEL_NIM_PROFILE=deepseek-ai/deepseek-v4-pro
 MODEL_NIM_REASONING=moonshotai/kimi-k2-thinking
+MODEL_NIM_CODER=qwen/qwen3-coder-480b-a35b-instruct
 
 # Models — Gemini tier
 MODEL_GEMINI_FLASH_LITE=gemini-3.5-flash-lite
@@ -907,6 +923,27 @@ Reason:   Audit found these were never invoked anywhere in the codebase — prof
           MODEL_NIM_PROFILE/MODEL_NIM_CODER settings from config.py and .env(.example).
           If AI-generated questions or AI profile synthesis becomes a real feature later,
           reintroduce these deliberately rather than leaving them as unwired scaffolding.
+
+Decision: Reintroduced PROFILE / Q_BEHAVIORAL / Q_TECHNICAL — properly wired this time
+Reason:   Turned out these were documented as real planned features in
+          MNEMIX_Product_Documentation.md (untracked), not abandoned experiments. Restored
+          the TASK_CHAINS entries, prompts, and config from the removal above, then actually
+          wired them in: core/memory/profile_synthesizer.py calls the profile task and
+          writes communication_style/strength_areas/gap_areas/career_narrative onto
+          UserProfileORM, exposed via POST /api/v1/profile/synthesize (auto-triggered on
+          ingestion completion, plus a manual "Regenerate Profile" button). core/interview/
+          question_generator.py calls q_behavioral/q_technical to generate the session-type
+          -specific portion of interview questions in parallel (asyncio.gather, matching the
+          "Pre-Generation" latency strategy below), with per-category fallback to the seeded
+          question bank on any LLM failure — the opener, gap-filling, and wildcard questions
+          always stay seeded. Both features degrade gracefully to deterministic behavior
+          (heuristic profile fields, seeded questions) if every provider in a chain fails,
+          so neither ingestion nor interview start can be blocked by an LLM outage. Also
+          fixed two latent bugs found while wiring this up: GET /memory/profile never
+          returned communication_style/strength_areas/gap_areas (added), and frontend/
+          memory.html read profile.career_narrative directly off the /memory/profile
+          response instead of the nested profile.profile.career_narrative (fixed by
+          flattening the response client-side).
 ```
 
 ---

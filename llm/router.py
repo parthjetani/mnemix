@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from time import monotonic
@@ -10,6 +11,14 @@ from openai import AsyncOpenAI, OpenAIError, RateLimitError
 from config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _strip_think_blocks(text: str) -> str:
+    """Strip <think>...</think> blocks from reasoning models (qwen3, deepseek-r1)."""
+    cleaned = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
+    if '<think>' in cleaned:  # truncated block, no closing tag
+        cleaned = re.sub(r'<think>.*', '', cleaned, flags=re.DOTALL).strip()
+    return cleaned
 
 
 class LLMError(Exception):
@@ -130,12 +139,26 @@ TASK_CHAINS: dict[str, list[ProviderSlot]] = {
         slot("gemini", settings.MODEL_GEMINI_FLASH_LITE, gemini_client, enabled=_gemini_enabled),
         slot("groq", settings.MODEL_EXTRACT, groq_client, max_rpd=GROQ_70B_VERSATILE_RPD),
     ],
+    "profile": [
+        slot("nvidia", settings.MODEL_NIM_PROFILE, nvidia_client, enabled=_nvidia_enabled),
+        slot("gemini", settings.MODEL_GEMINI_FLASH_LITE, gemini_client, enabled=_gemini_enabled),
+        slot("groq", settings.MODEL_PROFILE, groq_client, max_rpd=GROQ_70B_VERSATILE_RPD),
+    ],
+    "q_behavioral": [
+        slot("groq", settings.MODEL_Q_BEHAVIORAL, groq_client),
+        slot("nvidia", settings.MODEL_NIM_CLASSIFY, nvidia_client, enabled=_nvidia_enabled),
+    ],
+    "q_technical": [
+        slot("groq", settings.MODEL_Q_TECHNICAL, groq_client),
+        slot("nvidia", settings.MODEL_NIM_CODER, nvidia_client, enabled=_nvidia_enabled),
+    ],
     "eval": [
         slot("nvidia", settings.MODEL_NIM_REASONING, nvidia_client, enabled=_nvidia_enabled),
         slot("groq", settings.MODEL_EVAL, groq_client, max_rpd=GROQ_70B_VERSATILE_RPD),
     ],
     "eval_sysdesign": [
         slot("nvidia", settings.MODEL_NIM_REASONING, nvidia_client, enabled=_nvidia_enabled),
+        slot("gemini", settings.MODEL_GEMINI_FLASH_LITE, gemini_client, enabled=_gemini_enabled),
         slot("groq", settings.MODEL_EVAL_SYSDESIGN, groq_client),
     ],
     "feedback": [
@@ -216,13 +239,12 @@ class LLMRouter:
             f"All providers exhausted or failed for task '{task}': {'; '.join(attempts)}"
         )
 
+    def strip_plain_text(self, text: str) -> str:
+        """Strip reasoning-model <think> blocks from a plain-text (non-JSON) response."""
+        return _strip_think_blocks(text.strip())
+
     def parse_json_response(self, text: str) -> dict:
-        import re
-        cleaned = text.strip()
-        # Strip <think>...</think> blocks from reasoning models (qwen3, deepseek-r1).
-        cleaned = re.sub(r'<think>.*?</think>', '', cleaned, flags=re.DOTALL).strip()
-        if '<think>' in cleaned:  # truncated block, no closing tag
-            cleaned = re.sub(r'<think>.*', '', cleaned, flags=re.DOTALL).strip()
+        cleaned = _strip_think_blocks(text.strip())
         # Strip markdown fences
         if cleaned.startswith("```"):
             lines = cleaned.split("\n")

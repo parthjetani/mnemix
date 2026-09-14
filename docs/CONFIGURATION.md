@@ -7,7 +7,7 @@ All configuration is loaded from the `.env` file by `config.py` using pydantic-s
 | Variable | Description |
 |----------|-------------|
 | `GROQ_API_KEY` | Groq API key. **Required** — the server will fail to start without it. Free tier: 14,400 req/day for 8B-class models (much lower for `llama-3.3-70b-versatile`, ~1,000 req/day), no credit card needed. Get one at [console.groq.com](https://console.groq.com). |
-| `NVIDIA_API_KEY` | NVIDIA NIM API key. Optional but recommended — primary provider for `extract`/`eval`/`feedback` chains. If unset, those chains skip straight to their Groq fallback with no wasted network call. Get one at [build.nvidia.com/settings/api-keys](https://build.nvidia.com/settings/api-keys). |
+| `NVIDIA_API_KEY` | NVIDIA NIM API key. Optional but recommended — primary provider for `extract`/`profile`/`eval`/`feedback` chains. If unset, those chains skip straight to their Groq fallback with no wasted network call. Get one at [build.nvidia.com/settings/api-keys](https://build.nvidia.com/settings/api-keys). |
 | `GEMINI_API_KEY` | Gemini API key (OpenAI-compat endpoint). Optional — mid-tier fallback in several chains. Get one at [aistudio.google.com/apikey](https://aistudio.google.com/apikey). |
 
 Only `GROQ_API_KEY` is required; `NVIDIA_API_KEY` and `GEMINI_API_KEY` are optional but each configured key adds resilience (an extra fallback tier) to the task chains.
@@ -30,17 +30,22 @@ All models default to values optimized for the free tier. Each task routes throu
 |----------|---------|----------------|
 | `MODEL_CLASSIFY` | `llama-3.1-8b-instant` | Groq |
 | `MODEL_EXTRACT` | `llama-3.3-70b-versatile` | Groq |
+| `MODEL_PROFILE` | `llama-3.3-70b-versatile` | Groq |
+| `MODEL_Q_BEHAVIORAL` | `openai/gpt-oss-20b` | Groq (via OpenAI compat) |
+| `MODEL_Q_TECHNICAL` | `qwen/qwen3-32b` | Groq |
 | `MODEL_EVAL` | `llama-3.3-70b-versatile` | Groq |
 | `MODEL_EVAL_SYSDESIGN` | `qwen/qwen3-32b` | Groq |
 | `MODEL_FEEDBACK` | `llama-3.3-70b-versatile` | Groq |
 | `MODEL_GAP_ANALYSIS` | `qwen/qwen3-32b` | Groq |
 | `MODEL_NIM_CLASSIFY` | `meta/llama-3.1-8b-instruct` | NVIDIA NIM |
 | `MODEL_NIM_EXTRACT` | `deepseek-ai/deepseek-v4-flash` | NVIDIA NIM |
+| `MODEL_NIM_PROFILE` | `deepseek-ai/deepseek-v4-pro` | NVIDIA NIM |
 | `MODEL_NIM_REASONING` | `moonshotai/kimi-k2-thinking` | NVIDIA NIM |
+| `MODEL_NIM_CODER` | `qwen/qwen3-coder-480b-a35b-instruct` | NVIDIA NIM |
 | `MODEL_GEMINI_FLASH_LITE` | `gemini-3.5-flash-lite` | Gemini |
 | `MODEL_GEMMA4` | `gemma-4-31b-it` | Gemini |
 
-`qwen/qwen3-32b` and `moonshotai/kimi-k2-thinking` are thinking models. Their `<think>...</think>` blocks are automatically stripped by `parse_json_response` before JSON parsing.
+`qwen/qwen3-32b` and `moonshotai/kimi-k2-thinking` are thinking models. Their `<think>...</think>` blocks are automatically stripped — by `parse_json_response` for JSON-returning tasks, or by `llm_router.strip_plain_text()` for plain-text tasks like `q_technical`.
 
 ## Database
 

@@ -144,12 +144,24 @@ _USER_ID_MIGRATIONS = (
     "CREATE UNIQUE INDEX IF NOT EXISTS user_profile_user_id_idx ON user_profile (user_id)",
 )
 
+# user_profile.id was created as a plain integer PRIMARY KEY with no sequence/default
+# attached (predates this Column's autoincrement expectations), so every first-time
+# INSERT — any brand-new user's first PUT /profile or POST /profile/synthesize call —
+# fails with a NOT NULL violation on id. Idempotent fixup: attach a sequence as its default.
+_USER_PROFILE_ID_SEQUENCE_MIGRATION = (
+    "CREATE SEQUENCE IF NOT EXISTS user_profile_id_seq OWNED BY user_profile.id",
+    "ALTER TABLE user_profile ALTER COLUMN id SET DEFAULT nextval('user_profile_id_seq')",
+    "SELECT setval('user_profile_id_seq', COALESCE((SELECT MAX(id) FROM user_profile), 0) + 1, false)",
+)
+
 
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         # Idempotent migration: plant user_id on pre-existing tables.
         for stmt in _USER_ID_MIGRATIONS:
+            await conn.execute(text(stmt))
+        for stmt in _USER_PROFILE_ID_SEQUENCE_MIGRATION:
             await conn.execute(text(stmt))
 
 

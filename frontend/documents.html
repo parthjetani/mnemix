@@ -368,6 +368,9 @@
                 ? `Done — ${updated.memories_found} memories extracted`
                 : 'Ingestion failed';
               Utils.toast(msg, updated.status === 'complete' ? 'success' : 'error');
+              if (updated.status === 'complete') {
+                API.synthesizeProfile().catch(() => { /* non-critical */ });
+              }
             }
           } catch { /* ignore polling errors */ }
         }, 2500);

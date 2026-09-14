@@ -1,10 +1,12 @@
 import json
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
+from core.rate_limit import limiter
 from core.user_context import UserContext, get_user_context, get_or_create_user_profile_orm, get_user_profile_orm
+from core.memory.profile_synthesizer import synthesize_profile, orm_to_profile_schema
 from models.schemas import UserProfile
 
 router = APIRouter(prefix="/profile", tags=["profile"])
@@ -21,16 +23,7 @@ async def get_profile(
             field="software_engineering", seniority="mid",
             primary_stack=[], target_roles=[], strength_areas=[], gap_areas=[],
         )
-    return UserProfile(
-        field=row.field or "software_engineering",
-        seniority=row.seniority or "mid",
-        primary_stack=json.loads(row.primary_stack or "[]"),
-        target_roles=json.loads(row.target_roles or "[]"),
-        strength_areas=json.loads(row.strength_areas or "[]"),
-        gap_areas=json.loads(row.gap_areas or "[]"),
-        career_narrative=row.career_narrative,
-        last_updated=row.last_updated,
-    )
+    return orm_to_profile_schema(row)
 
 
 @router.put("", response_model=UserProfile)
@@ -57,13 +50,16 @@ async def update_profile(
     await db.commit()
     await db.refresh(row)
 
-    return UserProfile(
-        field=row.field or "software_engineering",
-        seniority=row.seniority or "mid",
-        primary_stack=json.loads(row.primary_stack or "[]"),
-        target_roles=json.loads(row.target_roles or "[]"),
-        strength_areas=json.loads(row.strength_areas or "[]"),
-        gap_areas=json.loads(row.gap_areas or "[]"),
-        career_narrative=row.career_narrative,
-        last_updated=row.last_updated,
-    )
+    return orm_to_profile_schema(row)
+
+
+@router.post("/synthesize", response_model=UserProfile)
+@limiter.limit("10/hour")
+async def synthesize_profile_endpoint(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    ctx: UserContext = Depends(get_user_context),
+):
+    profile = await synthesize_profile(ctx, db)
+    await db.commit()
+    return profile

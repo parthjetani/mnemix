@@ -24,6 +24,9 @@ Every LLM call specifies a task string. `TASK_CHAINS` maps each task to an order
 |------|-------------------|-----|
 | `classify` | Groq 8B → Gemini Gemma4 → NIM Llama-8B | Classify ambiguous conversation segments |
 | `extract` | NIM DeepSeek-v4-flash → Gemini Flash-Lite → Groq 70B | Extract memories from professional content |
+| `profile` | NIM DeepSeek-v4-pro → Gemini Flash-Lite → Groq 70B | Synthesize user profile from memory summary |
+| `q_behavioral` | Groq gpt-oss-20b → NIM Llama-8B | Generate a behavioral interview question |
+| `q_technical` | Groq qwen3-32b → NIM Qwen3-coder-480b | Generate a technical interview question |
 | `eval` | NIM Kimi-k2-thinking → Groq 70B | Evaluate behavioral/technical answers |
 | `eval_sysdesign` | NIM Kimi-k2-thinking → Groq qwen3-32b | Evaluate system design answers (reasoning model) |
 | `feedback` | NIM Kimi-k2-thinking → Gemini Flash-Lite → Groq 70B | Generate final feedback report |
@@ -31,7 +34,7 @@ Every LLM call specifies a task string. `TASK_CHAINS` maps each task to an order
 
 Model names and chain composition are defined in `llm/router.py` (`TASK_CHAINS`); the individual model IDs come from `config.py` settings — change them via `.env`.
 
-Note: there is no LLM-based profile synthesis or LLM-generated interview questions. Profile fields are plain manual CRUD (`api/profile.py`), and interview questions come entirely from the static seeded question bank (`core/interview/question_bank.py`). Previously-scaffolded `profile`/`q_behavioral`/`q_technical` task chains were removed since nothing ever called them — see CLAUDE.md's decision log if this becomes a real feature later.
+`profile` synthesis is triggered by `POST /api/v1/profile/synthesize` (`core/memory/profile_synthesizer.py`), called automatically when ingestion completes and manually via a "Regenerate Profile" button. `q_behavioral`/`q_technical` are called from `core/interview/question_bank.py::select_questions()` — the session-type-specific portion of question selection is generated per-user in parallel via `asyncio.gather` (`core/interview/question_generator.py`), with the static seeded question bank as a per-category fallback if generation fails. The opener, gap-filling, and wildcard questions always stay seeded.
 
 ### Calling the Router
 
@@ -75,11 +78,13 @@ parsed = llm_router.parse_json_response(text)
 
 Raises `ValueError` if no valid JSON is found.
 
+For prompts that return plain text instead of JSON (like `Q_TECHNICAL_PROMPT`, which runs on the reasoning model `qwen3-32b`), use `llm_router.strip_plain_text(text)` — strips the same `<think>...</think>` block without attempting JSON extraction.
+
 ---
 
 ## Prompts (`llm/prompts.py`)
 
-Five module-level string constants. No logic — format strings only.
+Eight module-level string constants. No logic — format strings only.
 
 ### `CLASSIFICATION_PROMPT`
 
@@ -127,6 +132,40 @@ Used by `core/processing/classifier.py` only for segments that don't match the k
 - Minimum confidence 0.65 to include
 - Return `{"memories": []}` if nothing qualifies
 - Never extract personal life content
+
+---
+
+### `PROFILE_PROMPT`
+
+**Task:** Synthesize a user profile from memory statistics and sample memories.
+
+**Input variables:** `{field}`, `{memory_summary}`, `{sample_memories}`
+
+**Output:** JSON with `communication_style`, `strength_areas`, `gap_areas`, `career_narrative`.
+
+Used by `core/memory/profile_synthesizer.py::synthesize_profile()`. On LLM failure, falls back to a heuristic derived straight from category counts (`strength_areas` = categories with 3+ memories, `gap_areas` = categories with 0-1) rather than leaving the profile empty.
+
+---
+
+### `Q_BEHAVIORAL_PROMPT`
+
+**Task:** Generate one behavioral interview question for a specific category.
+
+**Input variables:** `{category}`, `{profile_summary}`
+
+**Output:** Plain text question (no JSON).
+
+Questions must start with "Tell me about a time..." or "Describe a situation where..." — forces specificity.
+
+---
+
+### `Q_TECHNICAL_PROMPT`
+
+**Task:** Generate one technical interview question.
+
+**Input variables:** `{category}`, `{stack}`, `{seniority}`
+
+**Output:** Plain text question. `qwen3-32b` is a reasoning model — the response is passed through `llm_router.strip_plain_text()` before use, and `max_tokens` is set generously (~900) since the hidden `<think>` block consumes most of the budget.
 
 ---
 

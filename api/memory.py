@@ -48,7 +48,10 @@ async def get_memory_profile(
             "field": profile.field,
             "seniority": profile.seniority,
             "career_narrative": profile.career_narrative,
-            "primary_stack": profile.primary_stack,
+            "primary_stack": json.loads(profile.primary_stack) if profile.primary_stack else [],
+            "communication_style": profile.communication_style,
+            "strength_areas": json.loads(profile.strength_areas) if profile.strength_areas else [],
+            "gap_areas": json.loads(profile.gap_areas) if profile.gap_areas else [],
         }
 
     return {
